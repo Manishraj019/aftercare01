@@ -1,11 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:restaurantos/core/theme/app_theme.dart';
+import 'package:restaurantos/core/widgets/food_app_widgets.dart';
 
-import 'dart:io';
-
-// StateProvider to track the scanned table ID
 final selectedTableProvider = StateProvider<String?>((ref) => null);
 
 class CustomerLandingScreen extends ConsumerStatefulWidget {
@@ -15,182 +14,130 @@ class CustomerLandingScreen extends ConsumerStatefulWidget {
   ConsumerState<CustomerLandingScreen> createState() => _CustomerLandingScreenState();
 }
 
-class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _scannerAnimController;
+class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen> {
   final _tableController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-
-  @override
-  void initState() {
-    super.initState();
-    _scannerAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
-    if (kIsWeb || !Platform.environment.containsKey('FLUTTER_TEST')) {
-      _scannerAnimController.repeat(reverse: true);
-    }
-  }
 
   @override
   void dispose() {
-    _scannerAnimController.dispose();
     _tableController.dispose();
     super.dispose();
   }
 
-  void _unlockTable(String tableId) {
-    ref.read(selectedTableProvider.notifier).state = tableId;
+  void _proceed(BuildContext context, WidgetRef ref) {
+    if (_tableController.text.trim().isNotEmpty) {
+      ref.read(selectedTableProvider.notifier).state = _tableController.text.trim();
+    }
     context.go('/customer/menu');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('BistroOS Gateway'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => context.go('/login'),
+      backgroundColor: AppTheme.bgDarkCharcoal,
+      body: Stack(
+        children: [
+          // Elegant Background with subtle gradient
+          Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.topCenter,
+                radius: 1.5,
+                colors: [
+                  AppTheme.bgDeepBurgundy,
+                  AppTheme.bgDarkCharcoal,
+                ],
+                stops: const [0.0, 1.0],
+              ),
+            ),
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 16),
-              Text(
-                'Welcome to Gourmet Bistro',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Scan the QR code on your table to browse the menu and order fresh food directly to your seat.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-              const SizedBox(height: 40),
 
-              // Animated Mock QR Scanner Viewfinder
-              Center(
-                child: SizedBox(
-                  width: 240,
-                  height: 240,
-                  child: Stack(
-                    children: [
-                      // Viewfinder border corners
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade400, width: 2),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      // Animated scanning laser line
-                      AnimatedBuilder(
-                        animation: _scannerAnimController,
-                        builder: (context, child) {
-                          return Positioned(
-                            top: _scannerAnimController.value * 220 + 10,
-                            left: 15,
-                            right: 15,
-                            child: Container(
-                              height: 3,
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-                                    blurRadius: 8,
-                                    spreadRadius: 2,
-                                  )
-                                ],
+          Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Mock logo/icon
+                  Container(
+                    width: 120, height: 120,
+                    decoration: BoxDecoration(
+                      color: AppTheme.bgDarkPanel.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.primaryGold, width: 2),
+                      boxShadow: [
+                        BoxShadow(color: AppTheme.primaryGold.withValues(alpha: 0.2), blurRadius: 30, spreadRadius: 5)
+                      ],
+                    ),
+                    child: const Icon(Icons.restaurant_menu_rounded, size: 64, color: AppTheme.primaryGold),
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    'Gourmet Bistro',
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 48, fontWeight: FontWeight.bold, color: AppTheme.primaryGold, letterSpacing: 2.0
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Experience culinary excellence.',
+                    style: GoogleFonts.inter(
+                      fontSize: 18, color: AppTheme.textLight, letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+
+                  GlassContainer(
+                    blur: 20, opacity: 0.6,
+                    padding: const EdgeInsets.all(32),
+                    child: SizedBox(
+                      width: 320,
+                      child: Column(
+                        children: [
+                          Text(
+                            'Dine-in?',
+                            style: GoogleFonts.playfairDisplay(fontSize: 24, fontWeight: FontWeight.w600, color: AppTheme.pureWhite),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Enter your table number or scan the QR code on your table.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textMuted, height: 1.5),
+                          ),
+                          const SizedBox(height: 32),
+                          TextField(
+                            controller: _tableController,
+                            style: GoogleFonts.inter(color: AppTheme.pureWhite, fontSize: 18, fontWeight: FontWeight.bold),
+                            decoration: InputDecoration(
+                              hintText: 'Table Number (e.g., 5)',
+                              hintStyle: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 14, fontWeight: FontWeight.normal),
+                              prefixIcon: const Icon(Icons.table_bar_rounded, color: AppTheme.primaryGold),
+                              filled: true,
+                              fillColor: AppTheme.bgDarkPanel.withValues(alpha: 0.8),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppTheme.primaryGold, width: 1.5),
                               ),
                             ),
-                          );
-                        },
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 32),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FoodPrimaryButton(
+                              onPressed: () => _proceed(context, ref),
+                              label: 'VIEW MENU',
+                            ),
+                          ),
+                        ],
                       ),
-                      // Styled mock QR icon inside the viewfinder
-                      Center(
-                        child: Icon(
-                          Icons.qr_code_scanner,
-                          size: 140,
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 36),
-
-              // Simulate QR Scan button
-              ElevatedButton.icon(
-                key: const Key('simulateQrScanButton'),
-                icon: const Icon(Icons.qr_code),
-                label: const Text('Scan Table QR Code'),
-                onPressed: () => _unlockTable('Table T-04'),
-              ),
-              const SizedBox(height: 24),
-
-              // Divider
-              Row(
-                children: [
-                  Expanded(child: Divider(color: Colors.grey.shade300)),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text('OR', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  ),
-                  Expanded(child: Divider(color: Colors.grey.shade300)),
                 ],
               ),
-              const SizedBox(height: 24),
-
-              // Manual Table input form
-              Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      key: const Key('tableNumberField'),
-                      controller: _tableController,
-                      keyboardType: TextInputType.text,
-                      decoration: const InputDecoration(
-                        labelText: 'Enter Table Number Manually',
-                        hintText: 'e.g. Table 12',
-                        prefixIcon: Icon(Icons.table_restaurant),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a valid table number';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    OutlinedButton(
-                      key: const Key('manualTableSubmitButton'),
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          _unlockTable(_tableController.text.trim());
-                        }
-                      },
-                      child: const Text('Enter Table'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
