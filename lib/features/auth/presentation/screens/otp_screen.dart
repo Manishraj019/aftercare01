@@ -105,92 +105,103 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.primary, // Bold Red background
       appBar: AppBar(
         title: const Text(AppLocalizations.otpTitle),
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                AppLocalizations.otpTitle,
-                style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            child: Container(
+              padding: const EdgeInsets.all(32.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Theme.of(context).colorScheme.onSurface, width: 4),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, offset: Offset(8, 8)),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    AppLocalizations.otpTitle,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                          fontSize: 28,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _codeSent
+                        ? '${AppLocalizations.otpSubtitle} ${_phoneController.text}'
+                        : 'Enter your phone number to receive a 6-digit confirmation code.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                  ),
+                  const SizedBox(height: 40),
+                  if (!_codeSent) ...[
+                    // Phone input
+                    TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: AppLocalizations.phoneLabel,
+                        hintText: AppLocalizations.phoneHint,
+                        prefixIcon: Icon(Icons.phone),
+                      ),
                     ),
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _sendCode,
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : const Text('SEND VERIFICATION CODE'),
+                    ),
+                  ] else ...[
+                    // OTP Code Input
+                    TextFormField(
+                      controller: _codeController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      decoration: const InputDecoration(
+                        labelText: AppLocalizations.codeLabel,
+                        hintText: AppLocalizations.codeHint,
+                        prefixIcon: Icon(Icons.security),
+                        counterText: '',
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _verifyCode,
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : const Text(AppLocalizations.verifyButton),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton(
+                      onPressed: _isLoading ? null : () => setState(() => _codeSent = false),
+                      child: const Text('CHANGE PHONE NUMBER'),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                _codeSent
-                    ? '${AppLocalizations.otpSubtitle} ${_phoneController.text}'
-                    : 'Enter your phone number to receive a 6-digit confirmation code.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 40),
-              if (!_codeSent) ...[
-                // Phone input
-                Text(
-                  AppLocalizations.phoneLabel,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    hintText: AppLocalizations.phoneHint,
-                    prefixIcon: Icon(Icons.phone),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _sendCode,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      : const Text('Send Verification Code'),
-                ),
-              ] else ...[
-                // OTP Code Input
-                Text(
-                  AppLocalizations.codeLabel,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _codeController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  decoration: const InputDecoration(
-                    hintText: AppLocalizations.codeHint,
-                    prefixIcon: Icon(Icons.security),
-                    counterText: '',
-                  ),
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _verifyCode,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      : const Text(AppLocalizations.verifyButton),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: _isLoading ? null : () => setState(() => _codeSent = false),
-                  child: const Text('Change Phone Number'),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
