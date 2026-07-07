@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:restaurantos/core/theme/block_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:restaurantos/features/menu/domain/entities/menu_item_entity.dart';
@@ -224,7 +225,7 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
                                 _selectedTabIndex = index;
                               });
                             },
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.zero,
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 150),
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -232,7 +233,7 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
                                 color: isSelected
                                     ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4)
                                     : Colors.transparent,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Row(
                                 children: [
@@ -453,7 +454,7 @@ class _DashboardTab extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: Row(
                       children: [
@@ -492,7 +493,7 @@ class _DashboardTab extends ConsumerWidget {
                 children: [
                   Expanded(
                     flex: 3,
-                    child: Card(
+                    child: BlockContainer(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
@@ -528,7 +529,7 @@ class _DashboardTab extends ConsumerWidget {
                   const SizedBox(width: 16),
                   Expanded(
                     flex: 2,
-                    child: Card(
+                    child: BlockContainer(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
@@ -558,7 +559,7 @@ class _DashboardTab extends ConsumerWidget {
               const SizedBox(height: 16),
 
               // AI coach card
-              Card(
+              BlockContainer(
                 color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.2),
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -597,7 +598,7 @@ class _DashboardTab extends ConsumerWidget {
     return Container(
       width: width < 150 ? 150 : width,
       constraints: const BoxConstraints(minWidth: 160),
-      child: Card(
+      child: BlockContainer(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -637,7 +638,7 @@ class _DashboardTab extends ConsumerWidget {
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
             ),
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.zero,
           ),
         ),
         const SizedBox(height: 4),
@@ -862,7 +863,7 @@ class _AiCoachTabState extends State<_AiCoachTab> with SingleTickerProviderState
   }
 
   Widget _kpiItem(String label, String value, String footer, Color color, double width) {
-    return Card(
+    return BlockContainer(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -891,7 +892,7 @@ class _AiCoachTabState extends State<_AiCoachTab> with SingleTickerProviderState
       {'day': 'Sun', 'value': 1950.0},
     ];
     final maxVal = 2200.0;
-    return Card(
+    return BlockContainer(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -926,7 +927,7 @@ class _AiCoachTabState extends State<_AiCoachTab> with SingleTickerProviderState
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
                           ),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.zero,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -949,7 +950,7 @@ class _AiCoachTabState extends State<_AiCoachTab> with SingleTickerProviderState
       {'name': 'Beverages', 'pct': 0.15, 'color': Colors.green},
       {'name': 'Desserts', 'pct': 0.10, 'color': Colors.purple},
     ];
-    return Card(
+    return BlockContainer(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -972,7 +973,7 @@ class _AiCoachTabState extends State<_AiCoachTab> with SingleTickerProviderState
                       ),
                       const SizedBox(height: 6),
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.zero,
                         child: LinearProgressIndicator(
                           value: c['pct'] as double,
                           backgroundColor: Colors.grey.shade200,
@@ -996,7 +997,7 @@ class _AiCoachTabState extends State<_AiCoachTab> with SingleTickerProviderState
       {'name': 'Fresh Mint Lime Mojito', 'orders': 80, 'revenue': 480.0, 'share': '18%'},
       {'name': 'Molten Chocolate Lava Cake', 'orders': 65, 'revenue': 552.0, 'share': '12%'},
     ];
-    return Card(
+    return BlockContainer(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1060,7 +1061,7 @@ class _AiCoachTabState extends State<_AiCoachTab> with SingleTickerProviderState
       }
     }
 
-    return Card(
+    return BlockContainer(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1097,7 +1098,7 @@ class _AiCoachTabState extends State<_AiCoachTab> with SingleTickerProviderState
                           margin: const EdgeInsets.symmetric(horizontal: 2.0),
                           decoration: BoxDecoration(
                             color: getHeatColor(val),
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.zero,
                           ),
                         ),
                       );
@@ -1118,7 +1119,7 @@ class _AiCoachTabState extends State<_AiCoachTab> with SingleTickerProviderState
       child: Column(
         children: [
           // Business health and quick insights header card
-          Card(
+          BlockContainer(
             color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.15),
             margin: const EdgeInsets.only(bottom: 12),
             child: Padding(
@@ -1150,7 +1151,7 @@ class _AiCoachTabState extends State<_AiCoachTab> with SingleTickerProviderState
 
           // Chat Area
           Expanded(
-            child: Card(
+            child: BlockContainer(
               margin: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
@@ -1179,7 +1180,7 @@ class _AiCoachTabState extends State<_AiCoachTab> with SingleTickerProviderState
                                 color: isAi
                                     ? Colors.grey.shade100
                                     : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Text(msg['text'] as String),
                             ),
@@ -1320,7 +1321,7 @@ class _KdsTab extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.zero,
           ),
           alignment: Alignment.center,
           child: Text(
@@ -1340,7 +1341,7 @@ class _KdsTab extends ConsumerWidget {
   }
 
   Widget _kdsCard(BuildContext context, OrderEntity order, OwnerOrdersNotifier notifier) {
-    return Card(
+    return BlockContainer(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -1621,7 +1622,7 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
                     decoration: BoxDecoration(
                       color: isSelected ? tColor.withValues(alpha: 0.1) : Colors.grey.shade50,
                       border: Border.all(color: isSelected ? tColor : Colors.grey.shade300, width: isSelected ? 2 : 1),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.zero,
                     ),
                     padding: const EdgeInsets.all(12),
                     child: Column(
@@ -1634,7 +1635,7 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
                         const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: tColor, borderRadius: BorderRadius.circular(4)),
+                          decoration: BoxDecoration(color: tColor, borderRadius: BorderRadius.zero),
                           child: Text(table.status.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
                         )
                       ],
@@ -1758,7 +1759,7 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.zero,
                 border: Border.all(color: Colors.grey.shade400, width: 2),
                 boxShadow: [
                   BoxShadow(
@@ -1787,7 +1788,7 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.zero,
                       border: Border.all(color: Colors.black12),
                     ),
                     padding: const EdgeInsets.all(16),
@@ -2226,11 +2227,11 @@ class _MenuEditorTabState extends ConsumerState<_MenuEditorTab> {
             itemBuilder: (context, index) {
               final item = items[index];
 
-              return Card(
+              return BlockContainer(
                 child: ListTile(
                   leading: item.imageUrl.isNotEmpty
                       ? ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.zero,
                           child: Image.network(
                             item.imageUrl,
                             width: 48,
@@ -2347,7 +2348,7 @@ class _StaffInventoryTabState extends ConsumerState<_StaffInventoryTab> with Sin
             itemCount: _inventory.length,
             itemBuilder: (context, index) {
               final item = _inventory[index];
-              return Card(
+              return BlockContainer(
                 child: Padding(
                   padding: const EdgeInsets.all(12.0),
                   child: Row(
@@ -2377,7 +2378,7 @@ class _StaffInventoryTabState extends ConsumerState<_StaffInventoryTab> with Sin
                             Container(
                               margin: const EdgeInsets.only(top: 4),
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(4)),
+                              decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.zero),
                               child: const Text('LOW STOCK', style: TextStyle(color: Colors.red, fontSize: 8, fontWeight: FontWeight.bold)),
                             )
                         ],
@@ -2411,7 +2412,7 @@ class _StaffInventoryTabState extends ConsumerState<_StaffInventoryTab> with Sin
                 statusColor = Colors.green.shade800;
               }
 
-              return Card(
+              return BlockContainer(
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: Theme.of(context).colorScheme.primaryContainer,
@@ -2423,7 +2424,7 @@ class _StaffInventoryTabState extends ConsumerState<_StaffInventoryTab> with Sin
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
                       color: bgStatusColor,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.zero,
                       border: Border.all(color: borderStatusColor),
                     ),
                     child: DropdownButtonHideUnderline(
@@ -2640,7 +2641,7 @@ class _PromoSocialTabState extends State<_PromoSocialTab> with SingleTickerProvi
               itemCount: _promotions.length,
               itemBuilder: (context, index) {
                 final promo = _promotions[index];
-                return Card(
+                return BlockContainer(
                   child: ListTile(
                     leading: const Icon(Icons.local_offer, color: Colors.purple),
                     title: Text(promo.code, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -2663,7 +2664,7 @@ class _PromoSocialTabState extends State<_PromoSocialTab> with SingleTickerProvi
               itemCount: _socialFeed.length,
               itemBuilder: (context, index) {
                 final post = _socialFeed[index];
-                return Card(
+                return BlockContainer(
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Row(
@@ -2673,7 +2674,7 @@ class _PromoSocialTabState extends State<_PromoSocialTab> with SingleTickerProvi
                           height: 80,
                           decoration: BoxDecoration(
                             color: Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.zero,
                           ),
                           child: Icon(post.mediaType == 'video' ? Icons.play_circle_outline : Icons.image, size: 36),
                         ),
@@ -2795,7 +2796,7 @@ class _CustomerReviewsTabState extends State<_CustomerReviewsTab> with SingleTic
             itemCount: FakeOwnerData.customers.length,
             itemBuilder: (context, index) {
               final cust = FakeOwnerData.customers[index];
-              return Card(
+              return BlockContainer(
                 child: ListTile(
                   leading: CircleAvatar(child: Text(cust.name[0])),
                   title: Text(cust.name, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -2806,7 +2807,7 @@ class _CustomerReviewsTabState extends State<_CustomerReviewsTab> with SingleTic
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.amber.shade600, borderRadius: BorderRadius.circular(10)),
+                        decoration: BoxDecoration(color: Colors.amber.shade600, borderRadius: BorderRadius.zero),
                         child: Text(cust.tier, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(height: 4),
@@ -2823,7 +2824,7 @@ class _CustomerReviewsTabState extends State<_CustomerReviewsTab> with SingleTic
             itemCount: _feedbacks.length,
             itemBuilder: (context, index) {
               final fb = _feedbacks[index];
-              return Card(
+              return BlockContainer(
                 margin: const EdgeInsets.only(bottom: 12),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
@@ -2850,7 +2851,7 @@ class _CustomerReviewsTabState extends State<_CustomerReviewsTab> with SingleTic
                         Container(
                           padding: const EdgeInsets.all(8),
                           width: double.infinity,
-                          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6)),
+                          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.zero),
                           child: Text('Owner Reply: ${fb.reply}', style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
                         )
                       ],
@@ -3114,7 +3115,7 @@ class _SettingsTabState extends ConsumerState<_SettingsTab> {
       padding: const EdgeInsets.all(16),
       children: [
         if (activeShop != null)
-          Card(
+          BlockContainer(
             color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.15),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -3162,7 +3163,7 @@ class _SettingsTabState extends ConsumerState<_SettingsTab> {
             ),
           ),
         const SizedBox(height: 12),
-        Card(
+        BlockContainer(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -3220,7 +3221,7 @@ class _SettingsTabState extends ConsumerState<_SettingsTab> {
           ),
         ),
         const SizedBox(height: 12),
-        Card(
+        BlockContainer(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -3259,7 +3260,7 @@ class _SettingsTabState extends ConsumerState<_SettingsTab> {
           ),
         ),
         const SizedBox(height: 12),
-        Card(
+        BlockContainer(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(

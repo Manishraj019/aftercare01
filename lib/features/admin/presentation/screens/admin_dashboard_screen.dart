@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:restaurantos/core/theme/block_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -266,7 +267,7 @@ class _RestaurantsTabState extends ConsumerState<_RestaurantsTab> {
         itemBuilder: (context, index) {
           final rest = state.restaurants[index];
 
-          return Card(
+          return BlockContainer(
             child: ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(8),
@@ -314,7 +315,7 @@ class _LicensingTab extends ConsumerWidget {
         final rest = state.restaurants[index];
         final isActive = rest.licenseStatus == 'active';
 
-        return Card(
+        return BlockContainer(
           child: ListTile(
             title: Text(rest.name, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(isActive ? 'Status: Active Licence' : 'Status: Suspended Licence'),
@@ -348,7 +349,7 @@ class _UsersTab extends ConsumerWidget {
       itemBuilder: (context, index) {
         final user = state.users[index];
 
-        return Card(
+        return BlockContainer(
           child: ListTile(
             leading: Icon(
               user.role == 'admin'
