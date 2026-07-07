@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,9 +48,18 @@ class RestaurantOSApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'RestaurantOS',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
+      theme: AppTheme.luxuryTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system, // Respect system light/dark theme preference
+      themeMode: ThemeMode.dark,
+      scrollBehavior: const MaterialScrollBehavior().copyWith(
+        dragDevices: {
+          PointerDeviceKind.mouse,
+          PointerDeviceKind.touch,
+          PointerDeviceKind.stylus,
+          PointerDeviceKind.unknown,
+        },
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      ),
       routerConfig: router,
     );
   }
