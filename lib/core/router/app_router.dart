@@ -77,7 +77,6 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-// Simple placeholder screens for initial routing setup
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -89,7 +88,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Warm up the provider to trigger checkCurrentUser immediately on startup
     ref.read(authViewModelProvider);
     _startRedirectTimer();
   }
@@ -98,7 +96,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         final authState = ref.read(authViewModelProvider);
-        debugPrint('SPLASH REDIRECT: authState is $authState');
         if (authState is Authenticated) {
           final role = authState.user.role;
           if (role == 'admin') {
@@ -118,36 +115,48 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.primary, // Bold Red Background
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+                color: Theme.of(context).colorScheme.onPrimary, // White block
+                border: Border.all(color: Theme.of(context).colorScheme.onSurface, width: 4), // Dark border
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, offset: Offset(8, 8)),
+                ],
               ),
               child: Icon(
-                Icons.restaurant,
-                size: 64,
+                Icons.restaurant_menu,
+                size: 80,
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 48),
             Text(
-              'RestaurantOS',
+              'RESTAURANT',
               style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    letterSpacing: 4,
                   ),
             ),
-            const SizedBox(height: 12),
-            const SizedBox(
-              width: 150,
+            Text(
+              'OS',
+              style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.secondary,
+                    letterSpacing: 2,
+                  ),
+            ),
+            const SizedBox(height: 48),
+            SizedBox(
+              width: 200,
               child: LinearProgressIndicator(
-                borderRadius: BorderRadius.all(Radius.circular(8)),
+                backgroundColor: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.3),
+                color: Theme.of(context).colorScheme.secondary,
+                minHeight: 8,
               ),
             ),
           ],
@@ -163,51 +172,150 @@ class LoginScreenPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Welcome to\nRestaurantOS',
-                style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      fontSize: 32,
-                      height: 1.2,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Select your workspace role to begin',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 48),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.person),
-                label: const Text('Customer App'),
-                onPressed: () => context.go('/customer'),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.storefront),
-                label: const Text('Restaurant Owner Panel'),
-                onPressed: () => context.go('/owner'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.secondary,
+      body: Row(
+        children: [
+          // Left side brand block
+          Expanded(
+            flex: 1,
+            child: Container(
+              color: Theme.of(context).colorScheme.primary,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(48.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                          border: Border.all(color: Theme.of(context).colorScheme.onSurface, width: 4),
+                        ),
+                        child: Icon(Icons.restaurant_menu, size: 64, color: Theme.of(context).colorScheme.primary),
+                      ),
+                      const SizedBox(height: 32),
+                      Text(
+                        'RESTAURANT',
+                        style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              height: 1.1,
+                            ),
+                      ),
+                      Text(
+                        'OS',
+                        style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                              color: Theme.of(context).colorScheme.secondary,
+                              height: 1.1,
+                            ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'The ultimate management and discovery platform for culinary excellence.',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.9),
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.admin_panel_settings),
-                label: const Text('Super Admin Panel'),
-                onPressed: () => context.go('/admin'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.tertiary,
-                ),
-              ),
-            ],
+            ),
           ),
+          // Right side action block
+          Expanded(
+            flex: 1,
+            child: Container(
+              color: Theme.of(context).colorScheme.surface,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 64.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Select Workspace',
+                        style: Theme.of(context).textTheme.displayMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Choose your role to continue.',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: 48),
+                      _buildRoleButton(
+                        context,
+                        icon: Icons.person,
+                        title: 'Customer App',
+                        subtitle: 'Discover food & order',
+                        color: Theme.of(context).colorScheme.primary,
+                        onTap: () => context.go('/customer'),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildRoleButton(
+                        context,
+                        icon: Icons.storefront,
+                        title: 'Restaurant Owner',
+                        subtitle: 'Manage your business',
+                        color: Theme.of(context).colorScheme.secondary,
+                        onTap: () => context.go('/owner'),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildRoleButton(
+                        context,
+                        icon: Icons.admin_panel_settings,
+                        title: 'Super Admin',
+                        subtitle: 'Platform oversight',
+                        color: Theme.of(context).colorScheme.onSurface,
+                        onTap: () => context.go('/admin'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleButton(BuildContext context, {required IconData icon, required String title, required String subtitle, required Color color, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(color: Theme.of(context).colorScheme.onSurface, width: 3),
+          boxShadow: const [
+            BoxShadow(color: Colors.black12, offset: Offset(6, 6)),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                border: Border.all(color: color, width: 2),
+              ),
+              child: Icon(icon, size: 32, color: color),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward, size: 24),
+          ],
         ),
       ),
     );
