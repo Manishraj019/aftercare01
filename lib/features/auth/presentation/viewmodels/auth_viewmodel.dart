@@ -9,10 +9,11 @@ import 'package:restaurantos/features/auth/domain/usecases/login_usecase.dart';
 import 'package:restaurantos/features/auth/domain/usecases/register_usecase.dart';
 import 'package:restaurantos/features/auth/domain/usecases/sign_out_usecase.dart';
 import 'package:restaurantos/features/auth/presentation/viewmodels/auth_state.dart';
+import 'package:restaurantos/features/auth/data/datasources/api_auth_remote_data_source.dart';
 
 // Riverpod Providers for Data Source and Repository
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
-  return AuthRemoteDataSourceImpl();
+  return ApiAuthRemoteDataSource();
 });
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {

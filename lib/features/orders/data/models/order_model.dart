@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:restaurantos/features/menu/data/models/cart_item_model.dart';
 import 'package:restaurantos/features/orders/domain/entities/order_entity.dart';
 
@@ -21,9 +20,7 @@ class OrderModel extends OrderEntity {
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     DateTime parseDateTime(dynamic value) {
-      if (value is Timestamp) {
-        return value.toDate();
-      } else if (value is String) {
+      if (value is String) {
         return DateTime.parse(value);
       } else {
         return DateTime.now();
@@ -64,24 +61,6 @@ class OrderModel extends OrderEntity {
       'paymentMethod': paymentMethod,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
-    };
-  }
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'id': id,
-      'customerId': customerId,
-      'restaurantId': restaurantId,
-      'items': items.map((item) => CartItemModel.fromEntity(item).toJson()).toList(),
-      'subtotal': subtotal,
-      'tax': tax,
-      'deliveryFee': deliveryFee,
-      'total': total,
-      'status': status,
-      'deliveryAddress': deliveryAddress,
-      'paymentMethod': paymentMethod,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
     };
   }
 

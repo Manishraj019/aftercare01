@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:restaurantos/features/menu/data/repositories/menu_repository_impl.dart';
+import 'package:restaurantos/features/menu/data/repositories/api_menu_repository.dart';
 import 'package:restaurantos/features/menu/domain/entities/menu_item_entity.dart';
 import 'package:restaurantos/features/menu/domain/repositories/menu_repository.dart';
 
 // Riverpod Provider for Menu Repository
 final menuRepositoryProvider = Provider<MenuRepository>((ref) {
-  return MenuRepositoryImpl();
+  return ApiMenuRepository();
 });
 
 // Riverpod StateNotifierProvider for Menu State

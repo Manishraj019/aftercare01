@@ -1,5 +1,4 @@
 import 'package:dartz/dartz.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:restaurantos/core/errors/failures.dart';
 import 'package:restaurantos/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:restaurantos/features/auth/domain/entities/user_entity.dart';
@@ -21,8 +20,6 @@ class AuthRepositoryImpl implements AuthRepository {
         password: password,
       );
       return Right(userModel);
-    } on FirebaseAuthException catch (e) {
-      return Left(AuthFailure(e.message ?? 'Invalid credentials'));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
@@ -45,8 +42,6 @@ class AuthRepositoryImpl implements AuthRepository {
         phoneNumber: phoneNumber,
       );
       return Right(userModel);
-    } on FirebaseAuthException catch (e) {
-      return Left(AuthFailure(e.message ?? 'Registration failed'));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
@@ -77,8 +72,6 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final userModel = await remoteDataSource.signInWithGoogle();
       return Right(userModel);
-    } on FirebaseAuthException catch (e) {
-      return Left(AuthFailure(e.message ?? 'Google Sign-In failed'));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

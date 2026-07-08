@@ -1,38 +1,35 @@
 import 'dart:ui';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:restaurantos/core/router/app_router.dart';
 import 'package:restaurantos/core/theme/app_theme.dart';
-
 import 'package:restaurantos/features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:restaurantos/features/menu/presentation/viewmodels/menu_viewmodel.dart';
 import 'package:restaurantos/features/menu/presentation/viewmodels/cart_viewmodel.dart';
 import 'package:restaurantos/features/orders/presentation/viewmodels/order_history_viewmodel.dart';
-import 'package:restaurantos/core/mocks/fake_repositories.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:restaurantos/features/auth/data/datasources/api_auth_remote_data_source.dart';
+import 'package:restaurantos/features/menu/data/repositories/api_menu_repository.dart';
+import 'package:restaurantos/features/menu/data/repositories/api_cart_repository.dart';
+import 'package:restaurantos/features/orders/data/repositories/api_order_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  bool isFirebaseInitialized = false;
+  
   try {
-    await Firebase.initializeApp();
-    isFirebaseInitialized = true;
+    await dotenv.load(fileName: ".env");
   } catch (e) {
-    debugPrint('Firebase initialization failed or skipped: $e');
-    debugPrint('Continuing in offline/mock mode.');
+    debugPrint('Failed to load .env file: $e');
   }
 
   runApp(
     ProviderScope(
-      overrides: isFirebaseInitialized
-          ? []
-          : [
-              authRemoteDataSourceProvider.overrideWithValue(FakeAuthRemoteDataSource()),
-              menuRepositoryProvider.overrideWithValue(FakeMenuRepository()),
-              cartRepositoryProvider.overrideWithValue(FakeCartRepository()),
-              orderRepositoryProvider.overrideWithValue(FakeOrderRepository()),
-            ],
+      overrides: [
+        authRemoteDataSourceProvider.overrideWithValue(ApiAuthRemoteDataSource()),
+        menuRepositoryProvider.overrideWithValue(ApiMenuRepository()),
+        cartRepositoryProvider.overrideWithValue(ApiCartRepository()),
+        orderRepositoryProvider.overrideWithValue(ApiOrderRepository()),
+      ],
       child: const RestaurantOSApp(),
     ),
   );

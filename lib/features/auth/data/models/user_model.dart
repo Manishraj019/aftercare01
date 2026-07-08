@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:restaurantos/features/auth/domain/entities/user_entity.dart';
 
 class UserModel extends UserEntity {
@@ -15,9 +14,7 @@ class UserModel extends UserEntity {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     DateTime parseDateTime(dynamic value) {
-      if (value is Timestamp) {
-        return value.toDate();
-      } else if (value is String) {
+      if (value is String) {
         return DateTime.parse(value);
       } else {
         return DateTime.now();
@@ -46,20 +43,6 @@ class UserModel extends UserEntity {
       'isActive': isActive,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
-    };
-  }
-
-  // To save directly into Firestore, we can store DateTime as Firestore Timestamps
-  Map<String, dynamic> toFirestore() {
-    return {
-      'uid': uid,
-      'name': name,
-      'email': email,
-      'phoneNumber': phoneNumber,
-      'role': role,
-      'isActive': isActive,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
     };
   }
 

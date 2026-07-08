@@ -1,14 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:restaurantos/features/auth/presentation/viewmodels/auth_state.dart';
 import 'package:restaurantos/features/auth/presentation/viewmodels/auth_viewmodel.dart';
-import 'package:restaurantos/features/menu/data/repositories/cart_repository_impl.dart';
+import 'package:restaurantos/features/menu/data/repositories/api_cart_repository.dart';
 import 'package:restaurantos/features/menu/domain/entities/cart_item_entity.dart';
 import 'package:restaurantos/features/menu/domain/entities/menu_item_entity.dart';
 import 'package:restaurantos/features/menu/domain/repositories/cart_repository.dart';
 
 // Riverpod Provider for Cart Repository
 final cartRepositoryProvider = Provider<CartRepository>((ref) {
-  return CartRepositoryImpl();
+  return ApiCartRepository();
 });
 
 // Riverpod StateNotifierProvider for Cart State
