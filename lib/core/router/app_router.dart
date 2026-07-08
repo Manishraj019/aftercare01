@@ -17,6 +17,21 @@ import 'package:restaurantos/features/owner/presentation/screens/owner_dashboard
 import 'package:restaurantos/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:restaurantos/features/landing/presentation/screens/landing_screen.dart';
 
+// Smooth Fade Transition Helper
+Page _fadeTransitionPage(BuildContext context, GoRouterState state, Widget child) {
+  return CustomTransitionPage(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
+        child: child,
+      );
+    },
+    transitionDuration: const Duration(milliseconds: 400),
+  );
+}
+
 // GoRouter provider to make routing reactive and injectable
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -24,50 +39,50 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => const LandingScreen(),
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const LandingScreen()),
       ),
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const LoginScreen()),
       ),
       GoRoute(
         path: '/register',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final role = state.uri.queryParameters['role'];
-          return RegisterScreen(initialRole: role);
+          return _fadeTransitionPage(context, state, RegisterScreen(initialRole: role));
         },
       ),
       GoRoute(
         path: '/otp',
-        builder: (context, state) => const OtpScreen(),
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const OtpScreen()),
       ),
       GoRoute(
         path: '/customer',
-        builder: (context, state) => const CustomerLandingScreen(),
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const CustomerLandingScreen()),
       ),
       GoRoute(
         path: '/customer/menu',
-        builder: (context, state) => const MenuScreen(),
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const MenuScreen()),
       ),
       GoRoute(
         path: '/customer/cart',
-        builder: (context, state) => const CartScreen(),
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const CartScreen()),
       ),
       GoRoute(
         path: '/customer/checkout',
-        builder: (context, state) => const CheckoutScreen(),
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const CheckoutScreen()),
       ),
       GoRoute(
         path: '/customer/orders',
-        builder: (context, state) => const OrderHistoryScreen(),
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const OrderHistoryScreen()),
       ),
       GoRoute(
         path: '/owner',
-        builder: (context, state) => const OwnerDashboardScreen(),
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const OwnerDashboardScreen()),
       ),
       GoRoute(
         path: '/admin',
-        builder: (context, state) => const AdminDashboardScreen(),
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const AdminDashboardScreen()),
       ),
     ],
     errorBuilder: (context, state) => const Scaffold(

@@ -39,8 +39,15 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
   void _proceed(BuildContext context, WidgetRef ref) {
     if (_tableController.text.trim().isNotEmpty) {
       ref.read(selectedTableProvider.notifier).state = _tableController.text.trim();
+      context.go('/customer/menu');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter a valid table number.', style: GoogleFonts.inter(color: Colors.white)),
+          backgroundColor: AppTheme.primaryBurgundy,
+        ),
+      );
     }
-    context.go('/customer/menu');
   }
 
   @override
@@ -146,61 +153,66 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
   // 1. SCAN QR BOX (Dark red, responsive laser scanner)
   // ═══════════════════════════════════════════════
   Widget _buildScanCard() {
-    return _HoverGlowCard(
-      rotateAmplitude: 3.0,
-      glowColor: const Color(0xFFFF4B55),
-      onTap: () {}, // Action for Scan QR
-      baseDecoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1C1314), Color(0xFF0C090A)],
+    return PremiumCard(
+      primaryColor: const Color(0xFF818CF8),
+      baseColor: const Color(0xFF131522),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Top Section
+            Text(
+              'Quick & Contactless'.toUpperCase(),
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF818CF8),
+                letterSpacing: 1.5,
+              ),
+            ),
+            const Spacer(),
+            const SizedBox(
+              height: 120, // Smaller animated scanner
+              width: 120,
+              child: _AnimatedScannerVisual(),
+            ),
+            const Spacer(),
+            Text(
+              'Scan to Order',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                height: 1.1,
+              ),
+            ),
+
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () {},
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF818CF8),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                    const SizedBox(width: 8),
+                    Text('SCAN QR', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final availableHeight = constraints.maxHeight;
-            // Calculate a dynamic size for the scanner square based on available space
-            // ensuring it always fits and never overflows
-            final scannerSize = (availableHeight * 0.55).clamp(100.0, 300.0);
-            
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Spacer(),
-                  // The Animated Scanner Box
-                  SizedBox(
-                    width: scannerSize,
-                    height: scannerSize,
-                    child: const _AnimatedScannerVisual(),
-                  ),
-                  const Spacer(),
-                  // Clean typography
-                  Text(
-                    'Scan a QR Code',
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.pureWhite,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Position within the frame',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.white60,
-                    ),
-                  ),
-                  const Spacer(),
-                ],
-              ),
-            );
-          },
-        ),
     );
   }
 
@@ -208,20 +220,11 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
   // 2. ENTER TABLE BOX (Ultra sleek, glassmorphism blue/cyan)
   // ═══════════════════════════════════════════════
   Widget _buildTableCard(BuildContext context, WidgetRef ref) {
-    return _HoverGlowCard(
-      rotateAmplitude: 5.0,
-      glowColor: const Color(0xFF38BDF8),
-      onTap: () {}, // Inner interactions handled by text field/button
-      baseDecoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0F172A), Color(0xFF1E293B)], // Sleek slate blue
-        ),
-      ),
+    return PremiumCard(
+      primaryColor: const Color(0xFF34D399),
+      baseColor: const Color(0xFF0D1C16),
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Row(
           children: [
             Expanded(
@@ -235,7 +238,7 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF38BDF8), // Bright cyan
+                      color: const Color(0xFF34D399),
                       letterSpacing: 1.5,
                     ),
                   ),
@@ -264,24 +267,24 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
                       hintText: '#00',
                       hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 32),
                       filled: true,
-                      fillColor: const Color(0xFF0F172A),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 20),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFF334155))),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFF334155))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFF38BDF8), width: 2)),
+                      fillColor: const Color(0xFF06110B),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFF1B2C24))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFF1B2C24))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: Color(0xFF34D399), width: 2)),
                     ),
                     textAlign: TextAlign.center,
                     keyboardType: TextInputType.number,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
                       onPressed: () => _proceed(context, ref),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF38BDF8),
-                        foregroundColor: const Color(0xFF0F172A),
+                        backgroundColor: const Color(0xFF34D399),
+                        foregroundColor: const Color(0xFF06110B),
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
@@ -301,22 +304,9 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
   // 3. BROWSE MENU BOX (Premium Gold/Burgundy, Photography styled)
   // ═══════════════════════════════════════════════
   Widget _buildMenuCard(BuildContext context) {
-    return _HoverGlowCard(
-      rotateAmplitude: 2.0, // Less rotation for big card
-      glowColor: AppTheme.primaryGold,
-      onTap: () => context.go('/customer/menu'),
-      baseDecoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        color: AppTheme.bgDeepBurgundy,
-        gradient: RadialGradient(
-          center: const Alignment(0.5, 0.5),
-          radius: 1.5,
-          colors: [
-            AppTheme.primaryGold.withValues(alpha: 0.15),
-            AppTheme.bgDeepBurgundy,
-          ],
-        ),
-      ),
+    return PremiumCard(
+      primaryColor: AppTheme.primaryGold,
+      baseColor: AppTheme.bgDeepBurgundy,
       child: Stack(
         children: [
           // Decorative giant background icon
@@ -387,6 +377,74 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class PremiumCard extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final Color primaryColor;
+  final Color baseColor;
+
+  const PremiumCard({
+    super.key,
+    required this.child,
+    this.onTap,
+    required this.primaryColor,
+    required this.baseColor,
+  });
+
+  @override
+  State<PremiumCard> createState() => _PremiumCardState();
+}
+
+class _PremiumCardState extends State<PremiumCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: widget.onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+          transform: _isHovered 
+              ? (Matrix4.identity()..translate(0.0, -8.0)) 
+              : Matrix4.identity(),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: widget.baseColor,
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(
+              color: _isHovered ? widget.primaryColor.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.05),
+              width: 1.5,
+            ),
+            boxShadow: [
+              if (_isHovered)
+                BoxShadow(
+                  color: widget.primaryColor.withValues(alpha: 0.15),
+                  blurRadius: 40,
+                  spreadRadius: -10,
+                  offset: const Offset(0, 20),
+                ),
+            ],
+            gradient: RadialGradient(
+              center: Alignment.topLeft,
+              radius: 2.0,
+              colors: [
+                _isHovered ? widget.primaryColor.withValues(alpha: 0.15) : widget.primaryColor.withValues(alpha: 0.05),
+                widget.baseColor,
+              ],
+            ),
+          ),
+          child: widget.child,
+        ),
       ),
     );
   }
@@ -504,64 +562,4 @@ class _AnimatedScannerVisualState extends State<_AnimatedScannerVisual> with Sin
   }
 }
 
-// ── Hover Glow Wrapper ──
-class _HoverGlowCard extends StatefulWidget {
-  final Widget child;
-  final double rotateAmplitude;
-  final Color glowColor;
-  final BoxDecoration baseDecoration;
-  final VoidCallback? onTap;
 
-  const _HoverGlowCard({
-    required this.child,
-    this.rotateAmplitude = 3.0,
-    required this.glowColor,
-    required this.baseDecoration,
-    this.onTap,
-  });
-
-  @override
-  State<_HoverGlowCard> createState() => _HoverGlowCardState();
-}
-
-class _HoverGlowCardState extends State<_HoverGlowCard> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: TiltedCard(
-          rotateAmplitude: widget.rotateAmplitude,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            width: double.infinity,
-            decoration: widget.baseDecoration.copyWith(
-              border: Border.all(
-                color: _isHovered 
-                    ? widget.glowColor.withValues(alpha: 0.9) 
-                    : widget.glowColor.withValues(alpha: 0.2),
-                width: _isHovered ? 2.0 : 1.5,
-              ),
-              boxShadow: [
-                if (widget.baseDecoration.boxShadow != null)
-                  ...widget.baseDecoration.boxShadow!,
-                BoxShadow(
-                  color: widget.glowColor.withValues(alpha: _isHovered ? 0.3 : 0.0),
-                  blurRadius: _isHovered ? 40 : 10,
-                  spreadRadius: _isHovered ? 4 : -5,
-                ),
-              ],
-            ),
-            child: widget.child,
-          ),
-        ),
-      ),
-    );
-  }
-}

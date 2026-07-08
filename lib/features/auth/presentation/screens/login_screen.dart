@@ -60,7 +60,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     final screenWidth = MediaQuery.of(context).size.width;
-    final containerWidth = screenWidth > 800 ? 800.0 : screenWidth * 0.95;
+    final containerWidth = screenWidth > 1000 ? 1000.0 : screenWidth * 0.95;
     final halfWidth = containerWidth / 2;
 
     return Scaffold(
@@ -68,7 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: Center(
         child: Container(
           width: containerWidth,
-          height: 550,
+          height: 650,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: AppTheme.bgDarkPanel,
@@ -195,6 +195,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildAnimatedPanel() {
     return Container(
+      clipBehavior: Clip.hardEdge,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [AppTheme.bgDeepBurgundy, AppTheme.primaryBurgundy],
