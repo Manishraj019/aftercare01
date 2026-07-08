@@ -48,7 +48,7 @@ class OrderHistoryScreen extends ConsumerWidget {
       children: List.generate(statusList.length, (index) {
         final isActive = index <= currentIdx;
         final isCompleted = index < currentIdx;
-        final color = isActive ? AppTheme.primaryRed : AppTheme.borderGray;
+        final color = isActive ? AppTheme.primaryBurgundy : AppTheme.borderLight;
 
         return Expanded(
           child: Row(
@@ -60,14 +60,14 @@ class OrderHistoryScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: isActive ? AppTheme.primaryRed.withValues(alpha: 0.1) : AppTheme.bgLightGray,
+                        color: isActive ? AppTheme.primaryBurgundy.withValues(alpha: 0.1) : AppTheme.bgDarkPanel,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isActive ? AppTheme.primaryRed : AppTheme.borderGray,
+                          color: isActive ? AppTheme.primaryBurgundy : AppTheme.borderLight,
                           width: 1.5,
                         ),
                       ),
-                      child: Icon(statusIcons[index], color: isActive ? AppTheme.primaryRed : AppTheme.textDisabled, size: 18),
+                      child: Icon(statusIcons[index], color: isActive ? AppTheme.primaryBurgundy : AppTheme.textMuted, size: 18),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -76,7 +76,7 @@ class OrderHistoryScreen extends ConsumerWidget {
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                        color: isActive ? AppTheme.textDark : AppTheme.textMuted,
+                        color: isActive ? AppTheme.pureWhite : AppTheme.textMuted,
                       ),
                     ),
                   ],
@@ -87,7 +87,7 @@ class OrderHistoryScreen extends ConsumerWidget {
                   width: 24, height: 2,
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: BoxDecoration(
-                    color: isCompleted ? AppTheme.primaryRed : AppTheme.borderGray,
+                    color: isCompleted ? AppTheme.primaryBurgundy : AppTheme.borderLight,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -112,12 +112,12 @@ class OrderHistoryScreen extends ConsumerWidget {
         ),
       ),
       body: RefreshIndicator(
-        color: AppTheme.primaryRed,
+        color: AppTheme.primaryBurgundy,
         backgroundColor: AppTheme.pureWhite,
         onRefresh: () => ref.read(orderHistoryViewModelProvider.notifier).fetchOrders(),
         child: ordersState.when(
           loading: () => const Center(
-            child: CircularProgressIndicator(color: AppTheme.primaryRed),
+            child: CircularProgressIndicator(color: AppTheme.primaryBurgundy),
           ),
           error: (err, _) => Center(
             child: Text('Error: $err', style: GoogleFonts.inter(color: AppTheme.textMuted)),
@@ -131,16 +131,16 @@ class OrderHistoryScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: AppTheme.bgLightGray,
+                        color: AppTheme.bgDarkPanel,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.receipt_long_rounded,
-                          size: 64, color: AppTheme.textDisabled),
+                          size: 64, color: AppTheme.textMuted),
                     ),
                     const SizedBox(height: 24),
                     Text('No orders yet',
                         style: GoogleFonts.poppins(
-                          color: AppTheme.textDark, fontSize: 22, fontWeight: FontWeight.bold,
+                          color: AppTheme.pureWhite, fontSize: 22, fontWeight: FontWeight.bold,
                         )),
                     const SizedBox(height: 8),
                     Text('Your delicious journey begins here.',
@@ -159,7 +159,7 @@ class OrderHistoryScreen extends ConsumerWidget {
                 if (activeOrders.isNotEmpty) ...[
                   Text('Active Orders',
                       style: GoogleFonts.poppins(
-                        color: AppTheme.textDark, fontSize: 18, fontWeight: FontWeight.bold,
+                        color: AppTheme.pureWhite, fontSize: 18, fontWeight: FontWeight.bold,
                       )),
                   const SizedBox(height: 12),
                   ...activeOrders.map((order) {
@@ -187,16 +187,16 @@ class OrderHistoryScreen extends ConsumerWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.bgLightGray,
+                                  color: AppTheme.bgDarkPanel,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text('ID: #${order.id}',
                                     style: GoogleFonts.inter(
-                                      color: AppTheme.textDark, fontSize: 12, fontWeight: FontWeight.w600,
+                                      color: AppTheme.pureWhite, fontSize: 12, fontWeight: FontWeight.w600,
                                     )),
                               ),
                               Text('\$${order.total.toStringAsFixed(2)}',
-                                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+                                  style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.pureWhite)),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -207,7 +207,7 @@ class OrderHistoryScreen extends ConsumerWidget {
                               maxLines: 2, overflow: TextOverflow.ellipsis),
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 20),
-                            child: Divider(color: AppTheme.borderGray),
+                            child: Divider(color: AppTheme.borderLight),
                           ),
                           _buildStatusIndicator(context, order.status),
                         ],
@@ -220,7 +220,7 @@ class OrderHistoryScreen extends ConsumerWidget {
                 if (pastOrders.isNotEmpty) ...[
                   Text('Past Orders',
                       style: GoogleFonts.poppins(
-                        color: AppTheme.textDark, fontSize: 18, fontWeight: FontWeight.bold,
+                        color: AppTheme.pureWhite, fontSize: 18, fontWeight: FontWeight.bold,
                       )),
                   const SizedBox(height: 12),
                   ...pastOrders.map((order) {
@@ -247,11 +247,11 @@ class OrderHistoryScreen extends ConsumerWidget {
                             children: [
                               Text('ID: #${order.id}',
                                   style: GoogleFonts.inter(
-                                    color: AppTheme.textDark, fontSize: 14, fontWeight: FontWeight.w600,
+                                    color: AppTheme.pureWhite, fontSize: 14, fontWeight: FontWeight.w600,
                                   )),
                               Text('\$${order.total.toStringAsFixed(2)}',
                                   style: GoogleFonts.inter(
-                                    color: AppTheme.textDark, fontSize: 15, fontWeight: FontWeight.bold,
+                                    color: AppTheme.pureWhite, fontSize: 15, fontWeight: FontWeight.bold,
                                   )),
                             ],
                           ),
@@ -264,7 +264,7 @@ class OrderHistoryScreen extends ConsumerWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(formattedDate,
-                                  style: GoogleFonts.inter(color: AppTheme.textDisabled, fontSize: 12)),
+                                  style: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 12)),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(

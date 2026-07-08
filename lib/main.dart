@@ -49,7 +49,7 @@ class RestaurantOSApp extends ConsumerWidget {
       title: 'RestaurantOS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.luxuryTheme,
-      darkTheme: AppTheme.darkTheme,
+      darkTheme: AppTheme.luxuryTheme,
       themeMode: ThemeMode.dark,
       scrollBehavior: const MaterialScrollBehavior().copyWith(
         dragDevices: {

@@ -15,6 +15,7 @@ import 'package:restaurantos/features/orders/presentation/screens/order_history_
 import 'package:restaurantos/features/menu/presentation/screens/customer_landing_screen.dart';
 import 'package:restaurantos/features/owner/presentation/screens/owner_dashboard_screen.dart';
 import 'package:restaurantos/features/admin/presentation/screens/admin_dashboard_screen.dart';
+import 'package:restaurantos/features/landing/presentation/screens/landing_screen.dart';
 
 // GoRouter provider to make routing reactive and injectable
 final routerProvider = Provider<GoRouter>((ref) {
@@ -23,7 +24,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => const SplashScreen(),
+        builder: (context, state) => const LandingScreen(),
       ),
       GoRoute(
         path: '/login',
