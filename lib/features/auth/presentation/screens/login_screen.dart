@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:restaurantos/core/theme/app_theme.dart';
+import 'package:restaurantos/core/widgets/pill_nav.dart';
 import 'package:restaurantos/features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:restaurantos/features/auth/presentation/viewmodels/auth_state.dart';
 
@@ -291,48 +292,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildRoleSelector() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          _buildRoleOption('Customer'),
-          _buildRoleOption('Admin'),
-          _buildRoleOption('Hotel'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRoleOption(String role) {
-    final isSelected = _selectedRole == role;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedRole = role),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: isSelected
-                ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
-                : [],
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            role,
-            style: GoogleFonts.inter(
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              color: isSelected ? Colors.black : Colors.grey.shade600,
-              fontSize: 12,
-            ),
-          ),
-        ),
-      ),
+    return PillNav(
+      items: const [
+        PillNavItem(label: 'Customer', value: 'Customer'),
+        PillNavItem(label: 'Admin', value: 'Admin'),
+        PillNavItem(label: 'Hotel', value: 'Hotel'),
+      ],
+      selectedValue: _selectedRole,
+      onChanged: (val) => setState(() => _selectedRole = val),
+      baseColor: const Color(0xFF1F1F1F),
+      pillColor: const Color(0xFFF3F4F6),
+      hoveredPillTextColor: Colors.white,
+      pillTextColor: Colors.black87,
     );
   }
 
