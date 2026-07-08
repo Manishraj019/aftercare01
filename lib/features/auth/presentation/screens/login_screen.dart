@@ -15,8 +15,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  // true = Sign In form active (Red panel on right)
-  // false = Sign Up form active (Red panel on left)
+  // true = Sign In form active (Animated panel on right)
+  // false = Sign Up form active (Animated panel on left)
   bool isSignIn = true; 
   String _selectedRole = 'Customer'; // 'Customer', 'Admin', 'Hotel'
 
@@ -59,28 +59,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     });
 
-    // Make layout somewhat responsive, though the slider requires a minimum width
     final screenWidth = MediaQuery.of(context).size.width;
     final containerWidth = screenWidth > 800 ? 800.0 : screenWidth * 0.95;
     final halfWidth = containerWidth / 2;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1F1F1F), // Dark background
+      backgroundColor: AppTheme.bgDarkCharcoal,
       body: Center(
         child: Container(
           width: containerWidth,
           height: 550,
-          clipBehavior: Clip.antiAlias, // Ensures the sliding panel doesn't draw outside corners
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppTheme.bgDarkPanel,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withOpacity(0.5),
                 blurRadius: 30,
                 offset: const Offset(0, 15),
               )
-            ]
+            ],
+            border: Border.all(color: AppTheme.borderLight),
           ),
           child: Stack(
             children: [
@@ -96,7 +96,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: _buildSignUpForm(),
               ),
               
-              // 3. Animated Sliding Red Panel
+              // 3. Animated Sliding Panel
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 600),
                 curve: Curves.easeInOutCubic,
@@ -104,7 +104,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 top: 0,
                 bottom: 0,
                 width: halfWidth,
-                child: _buildRedPanel(),
+                child: _buildAnimatedPanel(),
               ),
               
               // Mobile/Small Screen Fallback Toggle
@@ -118,7 +118,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onPressed: () => setState(() => isSignIn = !isSignIn),
                       child: Text(
                         isSignIn ? 'Switch to Sign Up' : 'Switch to Sign In',
-                        style: const TextStyle(color: Colors.blueAccent),
+                        style: const TextStyle(color: AppTheme.primaryGold),
                       ),
                     ),
                   ),
@@ -140,18 +140,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Sign In', style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black)),
+          Text('Sign In', style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: AppTheme.textLight)),
           const SizedBox(height: 16),
           _buildRoleSelector(),
           const SizedBox(height: 16),
-          Text('Sign in With $_selectedRole Account', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
+          Text('Sign in With $_selectedRole Account', style: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 13)),
           const SizedBox(height: 16),
           _buildTextField(emailHint, controller: _signInEmail),
           _buildTextField('Enter Password', isPassword: true, controller: _signInPassword),
           const SizedBox(height: 16),
-          Text('Forget Password?', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
+          Text('Forget Password?', style: GoogleFonts.inter(color: AppTheme.primaryGold, fontSize: 13, fontWeight: FontWeight.w500)),
           const SizedBox(height: 24),
-          _buildRedButton('SIGN IN', _performLogin),
+          _buildGoldButton('SIGN IN', _performLogin),
         ],
       ),
     );
@@ -174,17 +174,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Create Account', style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black)),
+          Text('Create Account', style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: AppTheme.textLight)),
           const SizedBox(height: 16),
           _buildRoleSelector(),
           const SizedBox(height: 16),
-          Text('Register as $_selectedRole', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
+          Text('Register as $_selectedRole', style: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 13)),
           const SizedBox(height: 16),
           _buildTextField(nameHint, controller: _signUpName),
           _buildTextField(emailHint, controller: _signUpEmail),
           _buildTextField('Enter Password', isPassword: true, controller: _signUpPassword),
           const SizedBox(height: 24),
-          _buildRedButton('SIGN UP', () {
+          _buildGoldButton('SIGN UP', () {
             // Mock sign up success, slide back to login
             setState(() => isSignIn = true);
           }),
@@ -193,11 +193,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildRedPanel() {
+  Widget _buildAnimatedPanel() {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)],
+          colors: [AppTheme.bgDeepBurgundy, AppTheme.primaryBurgundy],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         )
@@ -205,23 +205,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 400),
         transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
-        child: isSignIn ? _buildRedPanelRight() : _buildRedPanelLeft(),
+        child: isSignIn ? _buildPanelRight() : _buildPanelLeft(),
       ),
     );
   }
 
-  Widget _buildRedPanelRight() {
+  Widget _buildPanelRight() {
     return Padding(
       key: const ValueKey('right'),
       padding: const EdgeInsets.symmetric(horizontal: 40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Hello World', style: GoogleFonts.poppins(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.white)),
+          Text('New Here?', style: GoogleFonts.poppins(fontSize: 36, fontWeight: FontWeight.bold, color: AppTheme.textGold)),
           const SizedBox(height: 16),
           Text(
-            'Sign up now and enjoy our site',
-            style: GoogleFonts.inter(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w300),
+            'Create an account to order food, manage your restaurant, or partner your hotel with us.',
+            style: GoogleFonts.inter(fontSize: 15, color: AppTheme.textLight, fontWeight: FontWeight.w300),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 48),
@@ -231,7 +231,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildRedPanelLeft() {
+  Widget _buildPanelLeft() {
     return Padding(
       key: const ValueKey('left'),
       padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -239,14 +239,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Welcome To\nRestaurantOS',
+            'Welcome Back!',
             textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2),
+            style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: AppTheme.textGold, height: 1.2),
           ),
           const SizedBox(height: 16),
           Text(
-            'Sign in With Email & Password',
-            style: GoogleFonts.inter(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w300),
+            'Sign in to manage your operations or continue your culinary journey.',
+            style: GoogleFonts.inter(fontSize: 15, color: AppTheme.textLight, fontWeight: FontWeight.w300),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 48),
@@ -262,32 +262,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       child: TextField(
         controller: controller,
         obscureText: isPassword,
-        style: GoogleFonts.inter(fontSize: 14),
+        style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textLight),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 13),
+          hintStyle: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 13),
           filled: true,
-          fillColor: const Color(0xFFF3F4F6),
+          fillColor: AppTheme.bgDarkCharcoal,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: AppTheme.borderLight),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppTheme.borderLight),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppTheme.primaryGold),
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       ),
-    );
-  }
-
-  Widget _buildSocialIcons() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildSocialBtn('G'),
-        const SizedBox(width: 12),
-        _buildSocialBtn('f'),
-        const SizedBox(width: 12),
-        _buildSocialBtn('in'),
-      ],
     );
   }
 
@@ -300,35 +295,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ],
       selectedValue: _selectedRole,
       onChanged: (val) => setState(() => _selectedRole = val),
-      baseColor: const Color(0xFF1F1F1F),
-      pillColor: const Color(0xFFF3F4F6),
-      hoveredPillTextColor: Colors.white,
-      pillTextColor: Colors.black87,
+      baseColor: AppTheme.primaryGold,
+      pillColor: AppTheme.bgDarkCharcoal,
+      hoveredPillTextColor: AppTheme.bgDarkCharcoal,
+      pillTextColor: AppTheme.textLight,
     );
   }
 
-  Widget _buildSocialBtn(String text) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        text,
-        style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.black87),
-      ),
-    );
-  }
-
-  Widget _buildRedButton(String text, VoidCallback onPressed) {
+  Widget _buildGoldButton(String text, VoidCallback onPressed) {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFFF2B2B),
-        foregroundColor: Colors.white,
+        backgroundColor: AppTheme.primaryGold,
+        foregroundColor: AppTheme.bgDarkCharcoal,
         padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
         elevation: 0,
@@ -341,8 +320,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white,
-        side: const BorderSide(color: Colors.white, width: 1.5),
+        foregroundColor: AppTheme.primaryGold,
+        side: const BorderSide(color: AppTheme.primaryGold, width: 1.5),
         padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
       ),
