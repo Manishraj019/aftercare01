@@ -17,6 +17,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // true = Sign In form active (Red panel on right)
   // false = Sign Up form active (Red panel on left)
   bool isSignIn = true; 
+  String _selectedRole = 'Customer'; // 'Customer', 'Admin', 'Hotel'
 
   final _signInEmail = TextEditingController(text: 'admin@bistro.com');
   final _signInPassword = TextEditingController(text: 'password123');
@@ -129,18 +130,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildSignInForm() {
+    String emailHint = 'Enter E-mail';
+    if (_selectedRole == 'Admin') emailHint = 'Admin Email / Staff ID';
+    if (_selectedRole == 'Hotel') emailHint = 'Business Email';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text('Sign In', style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black)),
-          const SizedBox(height: 24),
-          _buildSocialIcons(),
-          const SizedBox(height: 24),
-          Text('Sign in With Email & Password', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
           const SizedBox(height: 16),
-          _buildTextField('Enter E-mail', controller: _signInEmail),
+          _buildRoleSelector(),
+          const SizedBox(height: 16),
+          Text('Sign in With $_selectedRole Account', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
+          const SizedBox(height: 16),
+          _buildTextField(emailHint, controller: _signInEmail),
           _buildTextField('Enter Password', isPassword: true, controller: _signInPassword),
           const SizedBox(height: 16),
           Text('Forget Password?', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
@@ -152,19 +157,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildSignUpForm() {
+    String nameHint = 'Full Name';
+    String emailHint = 'Enter E-mail';
+    
+    if (_selectedRole == 'Admin') {
+      nameHint = 'Staff Full Name';
+      emailHint = 'Admin Email';
+    } else if (_selectedRole == 'Hotel') {
+      nameHint = 'Hotel / Business Name';
+      emailHint = 'Business Email';
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text('Create Account', style: GoogleFonts.poppins(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black)),
-          const SizedBox(height: 24),
-          _buildSocialIcons(),
-          const SizedBox(height: 24),
-          Text('Register with E-mail', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
           const SizedBox(height: 16),
-          _buildTextField('Name', controller: _signUpName),
-          _buildTextField('Enter E-mail', controller: _signUpEmail),
+          _buildRoleSelector(),
+          const SizedBox(height: 16),
+          Text('Register as $_selectedRole', style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13)),
+          const SizedBox(height: 16),
+          _buildTextField(nameHint, controller: _signUpName),
+          _buildTextField(emailHint, controller: _signUpEmail),
           _buildTextField('Enter Password', isPassword: true, controller: _signUpPassword),
           const SizedBox(height: 24),
           _buildRedButton('SIGN UP', () {
@@ -271,6 +287,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         const SizedBox(width: 12),
         _buildSocialBtn('in'),
       ],
+    );
+  }
+
+  Widget _buildRoleSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          _buildRoleOption('Customer'),
+          _buildRoleOption('Admin'),
+          _buildRoleOption('Hotel'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleOption(String role) {
+    final isSelected = _selectedRole == role;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedRole = role),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isSelected
+                ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
+                : [],
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            role,
+            style: GoogleFonts.inter(
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected ? Colors.black : Colors.grey.shade600,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
