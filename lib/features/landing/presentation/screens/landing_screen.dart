@@ -1,9 +1,11 @@
 import 'dart:math';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:restaurantos/core/theme/app_theme.dart';
 import 'package:restaurantos/core/widgets/tilted_card.dart';
+import 'package:restaurantos/core/widgets/hexagon_pattern.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -50,7 +52,10 @@ class _LandingScreenState extends State<LandingScreen>
     _shimmerController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
-    )..repeat();
+    );
+    if (kIsWeb || !Platform.environment.containsKey('FLUTTER_TEST')) {
+      _shimmerController.repeat();
+    }
 
     _fadeController.forward();
   }
@@ -77,31 +82,54 @@ class _LandingScreenState extends State<LandingScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFF0A0A0A),
-              Color(0xFF1A0A10),
-              Color(0xFF0C0C0C),
-              Color(0xFF0A0F1A),
+              Color(0xFF020205), // Deep slate-black
+              Color(0xFF0A0D1A), // Dark slate-blue
+              Color(0xFF030307),
+              Color(0xFF0D1226), // Rich dark slate-navy
             ],
             stops: [0.0, 0.35, 0.65, 1.0],
           ),
         ),
         child: Stack(
           children: [
-            // ── Ambient Gold Orbs ──
+            // ── Interactive Hexagon Pattern Background ──
+            Positioned.fill(
+              child: HexagonPattern(
+                radius: 40.0,
+                gap: 4.0,
+                xOffset: 0.0,
+                yOffset: 0.0,
+                strokeDasharray: "5,3", // Dashed honeycomb lines
+                direction: "horizontal",
+                hexagons: const [
+                  Point(1, 1),
+                  Point(3, 2),
+                  Point(2, 4),
+                  Point(5, 1),
+                  Point(7, 3),
+                  Point(6, 5),
+                  Point(9, 2),
+                  Point(11, 4),
+                  Point(10, 6),
+                ],
+              ),
+            ),
+
+            // ── Ambient Cybertech Neon Orbs ──
             Positioned(
               top: -120,
               right: -80,
-              child: _buildAmbientOrb(280, AppTheme.primaryGold.withValues(alpha: 0.04)),
+              child: _buildAmbientOrb(280, const Color(0xFF06B6D4).withValues(alpha: 0.06)),
             ),
             Positioned(
               bottom: -100,
               left: -60,
-              child: _buildAmbientOrb(220, AppTheme.primaryBurgundy.withValues(alpha: 0.06)),
+              child: _buildAmbientOrb(220, const Color(0xFF3B82F6).withValues(alpha: 0.06)),
             ),
             Positioned(
               top: MediaQuery.of(context).size.height * 0.4,
               left: MediaQuery.of(context).size.width * 0.5 - 150,
-              child: _buildAmbientOrb(300, AppTheme.primaryGold.withValues(alpha: 0.02)),
+              child: _buildAmbientOrb(300, const Color(0xFF06B6D4).withValues(alpha: 0.03)),
             ),
 
             // ── Main Content ──
@@ -154,10 +182,10 @@ class _LandingScreenState extends State<LandingScreen>
                         opacity: _cardsFade,
                         child: Text(
                           'SELECT YOUR PORTAL',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.karla(
                             fontSize: isMobile ? 11 : 13,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.textMuted.withValues(alpha: 0.6),
+                            color: const Color(0xFF94A3B8).withValues(alpha: 0.6),
                             letterSpacing: 4,
                           ),
                         ),
@@ -205,17 +233,17 @@ class _LandingScreenState extends State<LandingScreen>
       animation: _shimmerController,
       builder: (context, child) {
         return Container(
-          width: 80,
-          height: 80,
+          width: 85,
+          height: 85,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: AppTheme.primaryGold.withValues(alpha: 0.4 + 0.2 * sin(_shimmerController.value * 2 * pi)),
+              color: const Color(0xFF06B6D4).withValues(alpha: 0.4 + 0.2 * sin(_shimmerController.value * 2 * pi)),
               width: 2,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.primaryGold.withValues(alpha: 0.1 + 0.05 * sin(_shimmerController.value * 2 * pi)),
+                color: const Color(0xFF06B6D4).withValues(alpha: 0.15 + 0.05 * sin(_shimmerController.value * 2 * pi)),
                 blurRadius: 30,
                 spreadRadius: 5,
               ),
@@ -229,15 +257,17 @@ class _LandingScreenState extends State<LandingScreen>
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppTheme.primaryGold.withValues(alpha: 0.15),
-                  AppTheme.primaryBurgundy.withValues(alpha: 0.2),
+                  const Color(0xFF06B6D4).withValues(alpha: 0.1),
+                  const Color(0xFF3B82F6).withValues(alpha: 0.15),
                 ],
               ),
             ),
-            child: const Icon(
-              Icons.restaurant_rounded,
-              size: 36,
-              color: AppTheme.primaryGold,
+            child: const Center(
+              child: SizedBox(
+                width: 42,
+                height: 42,
+                child: _AuroraLogoIcon(),
+              ),
             ),
           ),
         );
@@ -249,13 +279,13 @@ class _LandingScreenState extends State<LandingScreen>
     return Column(
       children: [
         Text(
-          'GOURMET BISTRO',
+          'AURORA',
           textAlign: TextAlign.center,
-          style: GoogleFonts.playfairDisplay(
-            fontSize: isMobile ? 32 : 48,
+          style: GoogleFonts.spaceMono(
+            fontSize: isMobile ? 34 : 52,
             fontWeight: FontWeight.bold,
-            color: AppTheme.pureWhite,
-            letterSpacing: isMobile ? 4 : 8,
+            color: Colors.white,
+            letterSpacing: isMobile ? 6 : 12,
             height: 1.1,
           ),
         ),
@@ -267,9 +297,9 @@ class _LandingScreenState extends State<LandingScreen>
               shaderCallback: (bounds) {
                 return LinearGradient(
                   colors: const [
-                    AppTheme.primaryGold,
-                    Color(0xFFF5E6A3),
-                    AppTheme.primaryGold,
+                    Color(0xFF06B6D4),
+                    Color(0xFF93C5FD), // Light blue/cyan glow
+                    Color(0xFF3B82F6),
                   ],
                   stops: [
                     (_shimmerController.value - 0.3).clamp(0.0, 1.0),
@@ -281,10 +311,10 @@ class _LandingScreenState extends State<LandingScreen>
               child: Text(
                 'RESTAURANT  OPERATING  SYSTEM',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.karla(
                   fontSize: isMobile ? 10 : 13,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.pureWhite,
+                  color: Colors.white,
                   letterSpacing: isMobile ? 4 : 6,
                 ),
               ),
@@ -299,10 +329,10 @@ class _LandingScreenState extends State<LandingScreen>
     return Text(
       'Where every dish tells a story',
       textAlign: TextAlign.center,
-      style: GoogleFonts.playfairDisplay(
+      style: GoogleFonts.playfairDisplaySc(
         fontSize: isMobile ? 16 : 20,
         fontStyle: FontStyle.italic,
-        color: AppTheme.textMuted.withValues(alpha: 0.7),
+        color: const Color(0xFF94A3B8).withValues(alpha: 0.7),
         letterSpacing: 1,
       ),
     );
@@ -318,9 +348,9 @@ class _LandingScreenState extends State<LandingScreen>
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppTheme.primaryGold.withValues(alpha: 0),
-                AppTheme.primaryGold.withValues(alpha: 0.4 + 0.3 * sin(_shimmerController.value * 2 * pi)),
-                AppTheme.primaryGold.withValues(alpha: 0),
+                const Color(0xFF06B6D4).withValues(alpha: 0),
+                const Color(0xFF3B82F6).withValues(alpha: 0.4 + 0.3 * sin(_shimmerController.value * 2 * pi)),
+                const Color(0xFF06B6D4).withValues(alpha: 0),
               ],
             ),
           ),
@@ -336,15 +366,16 @@ class _LandingScreenState extends State<LandingScreen>
         title: 'Order Food',
         subtitle: 'Browse the menu, place\nyour order & track it live',
         route: '/customer',
-        accentColor: AppTheme.primaryGold,
+        accentColor: const Color(0xFF06B6D4), // Cyan
         index: 0,
       ),
+
       _RoleCardData(
         icon: Icons.badge_rounded,
         title: 'Staff Portal',
-        subtitle: 'For employees — manage\norders, kitchen & tables',
+        subtitle: 'For employees — Chef KDS,\nWaiter & Inventory Portal',
         route: '/login',
-        accentColor: const Color(0xFF8B5CF6), // violet
+        accentColor: const Color(0xFF3B82F6), // Electric Blue
         index: 1,
       ),
       _RoleCardData(
@@ -352,7 +383,7 @@ class _LandingScreenState extends State<LandingScreen>
         title: 'Owner Dashboard',
         subtitle: 'For business owners —\nanalytics, menu & revenue',
         route: '/login',
-        accentColor: const Color(0xFF06B6D4), // cyan
+        accentColor: const Color(0xFF10B981), // Emerald Green
         index: 2,
       ),
       _RoleCardData(
@@ -360,7 +391,7 @@ class _LandingScreenState extends State<LandingScreen>
         title: 'Super Admin',
         subtitle: 'Platform management\n& system controls',
         route: '/login',
-        accentColor: const Color(0xFFF59E0B), // amber
+        accentColor: const Color(0xFF8B5CF6), // Purple
         index: 3,
       ),
     ];
@@ -407,23 +438,23 @@ class _LandingScreenState extends State<LandingScreen>
         Container(
           width: 40,
           height: 1,
-          color: AppTheme.borderLight,
+          color: Colors.white12,
         ),
         const SizedBox(height: 16),
         Text(
           'Powered by RestaurantOS',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.karla(
             fontSize: 11,
-            color: AppTheme.textMuted.withValues(alpha: 0.4),
+            color: const Color(0xFF94A3B8).withValues(alpha: 0.4),
             letterSpacing: 2,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           'v1.0.0',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.karla(
             fontSize: 10,
-            color: AppTheme.textMuted.withValues(alpha: 0.25),
+            color: const Color(0xFF94A3B8).withValues(alpha: 0.25),
           ),
         ),
       ],
@@ -522,7 +553,7 @@ class _RoleCardState extends State<_RoleCard>
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: Color.lerp(
-                        AppTheme.borderLight,
+                        Colors.white12,
                         widget.data.accentColor.withValues(alpha: 0.5),
                         _glowAnim.value,
                       )!,
@@ -562,18 +593,18 @@ class _RoleCardState extends State<_RoleCard>
             children: [
               Text(
                 widget.data.title,
-                style: GoogleFonts.playfairDisplay(
+                style: GoogleFonts.playfairDisplaySc(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.pureWhite,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 widget.data.subtitle.replaceAll('\n', ' '),
-                style: GoogleFonts.inter(
+                style: GoogleFonts.karla(
                   fontSize: 12,
-                  color: AppTheme.textMuted,
+                  color: const Color(0xFF94A3B8),
                   height: 1.4,
                 ),
               ),
@@ -592,7 +623,7 @@ class _RoleCardState extends State<_RoleCard>
           child: Icon(
             Icons.arrow_forward_rounded,
             size: 18,
-            color: _isHovered ? widget.data.accentColor : AppTheme.textMuted.withValues(alpha: 0.5),
+            color: _isHovered ? widget.data.accentColor : Colors.white38,
           ),
         ),
       ],
@@ -619,7 +650,7 @@ class _RoleCardState extends State<_RoleCard>
               child: Icon(
                 Icons.arrow_forward_rounded,
                 size: 20,
-                color: _isHovered ? widget.data.accentColor : AppTheme.textMuted.withValues(alpha: 0.3),
+                color: _isHovered ? widget.data.accentColor : Colors.white24,
               ),
             ),
           ],
@@ -627,18 +658,18 @@ class _RoleCardState extends State<_RoleCard>
         const SizedBox(height: 20),
         Text(
           widget.data.title,
-          style: GoogleFonts.playfairDisplay(
+          style: GoogleFonts.playfairDisplaySc(
             fontSize: 22,
             fontWeight: FontWeight.bold,
-            color: AppTheme.pureWhite,
+            color: Colors.white,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           widget.data.subtitle,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.karla(
             fontSize: 13,
-            color: AppTheme.textMuted,
+            color: const Color(0xFF94A3B8),
             height: 1.5,
           ),
         ),
@@ -681,4 +712,99 @@ class _RoleCardState extends State<_RoleCard>
       ),
     );
   }
+}
+
+class _AuroraLogoIcon extends StatelessWidget {
+  const _AuroraLogoIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _AuroraLogoPainter(),
+    );
+  }
+}
+
+class _AuroraLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double w = size.width;
+    final double h = size.height;
+
+    double scaleX(double x) => x * w / 100.0;
+    double scaleY(double y) => y * h / 100.0;
+
+    Path scalePath(List<Offset> pts) {
+      final Path path = Path();
+      path.moveTo(scaleX(pts[0].dx), scaleY(pts[0].dy));
+      for (int i = 1; i < pts.length; i++) {
+        path.lineTo(scaleX(pts[i].dx), scaleY(pts[i].dy));
+      }
+      path.close();
+      return path;
+    }
+
+    // 1. Left Leg path
+    final List<Offset> leftLeg = [
+      const Offset(22, 82),
+      const Offset(45, 41),
+      const Offset(57, 41),
+      const Offset(34, 82),
+    ];
+    final Path pathLeft = scalePath(leftLeg);
+    final Paint paintLeft = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.bottomCenter,
+        end: Alignment.topCenter,
+        colors: [
+          Color(0xFF8B5CF6), // Violet
+          Color(0xFFD856BF), // Magenta
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+
+    // 2. Top slash path
+    final List<Offset> topSlash = [
+      const Offset(46, 39),
+      const Offset(57, 18),
+      const Offset(69, 18),
+      const Offset(58, 39),
+    ];
+    final Path pathTop = scalePath(topSlash);
+    final Paint paintTop = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.bottomLeft,
+        end: Alignment.topRight,
+        colors: [
+          Color(0xFF3B82F6), // Blue
+          Color(0xFF8B5CF6), // Violet
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+
+    // 3. Right Leg & Crossbar path
+    final List<Offset> rightLeg = [
+      const Offset(45, 52),
+      const Offset(77, 52),
+      const Offset(91, 80),
+      const Offset(78, 80),
+      const Offset(68, 59),
+      const Offset(45, 59),
+    ];
+    final Path pathRight = scalePath(rightLeg);
+    final Paint paintRight = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.bottomRight,
+        end: Alignment.topLeft,
+        colors: [
+          Color(0xFF03B3C3), // Cyan
+          Color(0xFF3B82F6), // Blue
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+
+    canvas.drawPath(pathLeft, paintLeft);
+    canvas.drawPath(pathTop, paintTop);
+    canvas.drawPath(pathRight, paintRight);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

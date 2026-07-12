@@ -10,6 +10,8 @@ class MenuItemEntity extends Equatable {
   final bool isVegetarian;
   final bool isAvailable;
   final String imageUrl;
+  final bool isBestSeller;
+  final double preparationTimeMinutes;
 
   const MenuItemEntity({
     required this.id,
@@ -21,6 +23,8 @@ class MenuItemEntity extends Equatable {
     required this.isVegetarian,
     this.isAvailable = true,
     required this.imageUrl,
+    this.isBestSeller = false,
+    this.preparationTimeMinutes = 10.0,
   });
 
   @override
@@ -34,5 +38,7 @@ class MenuItemEntity extends Equatable {
         isVegetarian,
         isAvailable,
         imageUrl,
+        isBestSeller,
+        preparationTimeMinutes,
       ];
 }

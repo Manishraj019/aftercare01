@@ -1,40 +1,42 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Luxury Dark Theme Colors
-  static const Color pureWhite = Color(0xFFFFFFFF);
-  static const Color pureBlack = Color(0xFF000000);
+  // UI UX Pro Max - Vibrant & Block-based Light Theme
+  // Note: We are keeping the old variable names to instantly reskin the app without breaking screen files.
+  
+  static const Color pureWhite = Color(0xFF450A0A); // Old White Text -> New Dark Foreground
+  static const Color pureBlack = Color(0xFFFFFFFF); // Old Black -> New White
   
   // Backgrounds
-  static const Color bgDarkCharcoal = Color(0xFF0C0C0C);
-  static const Color bgDarkPanel = Color(0xFF141414);
-  static const Color bgDeepBurgundy = Color(0xFF23080F); 
+  static const Color bgDarkCharcoal = Color(0xFFFEF2F2); // Old Dark Bg -> New Warm Light Red
+  static const Color bgDarkPanel = Color(0xFFFFFFFF); // Old Panel -> New White Block Surface
+  static const Color bgDeepBurgundy = Color(0xFFFECACA); // Old Secondary Dark -> New Muted Border Red
   
   // Accents
-  static const Color primaryGold = Color(0xFFD4AF37); // Brass/Gold
-  static const Color primaryBurgundy = Color(0xFF4A1220); // Oxblood
+  static const Color primaryGold = Color(0xFFDC2626); // Old Gold -> New Primary Red
+  static const Color primaryBurgundy = Color(0xFFF87171); // Old Burgundy -> New Secondary Light Red
   
   // Text
-  static const Color textLight = Color(0xFFF0F0F0);
-  static const Color textMuted = Color(0xFFA0A0A0);
-  static const Color textGold = Color(0xFFE8D08B);
-
+  static const Color textLight = Color(0xFF450A0A); // Old Light Text -> New Dark Foreground
+  static const Color textMuted = Color(0xFF991B1B); // Old Muted -> New Medium Red
+  static const Color textGold = Color(0xFFA16207); // Old Gold -> New Warm Gold CTA
+  
   // Borders
-  static const Color borderGold = Color(0x33D4AF37);
-  static const Color borderLight = Color(0x1AFFFFFF);
-
+  static const Color borderGold = Color(0x33DC2626); // Primary with alpha
+  static const Color borderLight = Color(0xFFFECACA); // Border color
+  
   // Status (Chef's Tags)
-  static const Color vegGreen = Color(0xFF2E7D32);
-  static const Color nonVegRed = Color(0xFFC62828);
+  static const Color vegGreen = Color(0xFF166534); // Dark green for light background
+  static const Color nonVegRed = Color(0xFF991B1B); // Dark red for light background
   
   // The global app theme data
   static ThemeData get luxuryTheme {
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: Brightness.light,
       scaffoldBackgroundColor: bgDarkCharcoal,
       primaryColor: primaryGold,
-      colorScheme: const ColorScheme.dark(
+      colorScheme: const ColorScheme.light(
         primary: primaryGold,
         secondary: primaryBurgundy,
         surface: bgDarkPanel,
@@ -48,7 +50,6 @@ class AppTheme {
       ),
       iconTheme: const IconThemeData(color: primaryGold),
       textTheme: const TextTheme(
-        // Playfair Display will be used via GoogleFonts inline, but setting baseline colors
         displayLarge: TextStyle(color: textLight),
         displayMedium: TextStyle(color: textLight),
         displaySmall: TextStyle(color: textLight),
@@ -65,7 +66,7 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryGold,
-          foregroundColor: bgDarkCharcoal,
+          foregroundColor: pureBlack,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
@@ -82,7 +83,7 @@ class AppTheme {
         contentTextStyle: TextStyle(color: textLight),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: Colors.transparent, // Transparent for Glassmorphism
+        backgroundColor: Colors.transparent,
         elevation: 0,
       ),
     );

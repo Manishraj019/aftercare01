@@ -2,15 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:restaurantos/core/theme/block_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:restaurantos/core/theme/app_theme.dart';
 import 'package:restaurantos/features/menu/domain/entities/menu_item_entity.dart';
 import 'package:restaurantos/features/menu/presentation/viewmodels/menu_viewmodel.dart';
 import 'package:restaurantos/features/orders/domain/entities/order_entity.dart';
+import 'package:restaurantos/features/orders/domain/entities/dining_session.dart';
 import 'package:restaurantos/features/orders/domain/repositories/order_repository.dart';
 import 'package:restaurantos/features/orders/presentation/viewmodels/order_history_viewmodel.dart';
+import 'package:restaurantos/features/orders/presentation/viewmodels/dining_session_viewmodel.dart';
+import 'package:restaurantos/core/widgets/food_app_widgets.dart';
+import 'package:restaurantos/core/utils/image_uploader.dart' as uploader;
+import 'dart:convert';
 import 'package:restaurantos/features/owner/presentation/widgets/fake_owner_data.dart';
 import 'package:restaurantos/features/menu/domain/entities/cart_item_entity.dart';
-import 'package:restaurantos/features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:restaurantos/features/auth/presentation/viewmodels/auth_state.dart';
+import 'package:restaurantos/features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import 'package:restaurantos/features/loyalty/presentation/viewmodels/loyalty_viewmodel.dart';
+import 'package:restaurantos/features/loyalty/data/repositories/loyalty_repository.dart';
+import 'package:restaurantos/features/loyalty/domain/entities/reward_offer_entity.dart';
+
+import 'package:restaurantos/features/orders/data/repositories/api_order_repository.dart';
 
 // StateNotifier to manage Owner orders dashboard feed
 final ownerOrdersProvider =
@@ -25,6 +36,13 @@ class OwnerOrdersNotifier extends StateNotifier<AsyncValue<List<OrderEntity>>> {
 
   OwnerOrdersNotifier(this._repo, this._ref) : super(const AsyncLoading()) {
     fetchOrders();
+    ApiOrderRepository.addListener(fetchOrders);
+  }
+
+  @override
+  void dispose() {
+    ApiOrderRepository.removeListener(fetchOrders);
+    super.dispose();
   }
 
   Future<void> fetchOrders() async {
@@ -38,6 +56,42 @@ class OwnerOrdersNotifier extends StateNotifier<AsyncValue<List<OrderEntity>>> {
 
   Future<void> updateStatus(String orderId, String status) async {
     await _repo.updateOrderStatus(orderId, status);
+    await fetchOrders();
+    _ref.read(orderHistoryViewModelProvider.notifier).fetchOrders();
+  }
+
+  Future<void> updateItemStatus(String orderId, String itemId, String status) async {
+    await _repo.updateKOTItemStatus(orderId, itemId, status);
+    await fetchOrders();
+    _ref.read(orderHistoryViewModelProvider.notifier).fetchOrders();
+  }
+
+  Future<void> updateOwnerDelay(String orderId, double delayMins) async {
+    await _repo.updateKOTDetails(orderId, ownerDelay: delayMins);
+    await fetchOrders();
+    _ref.read(orderHistoryViewModelProvider.notifier).fetchOrders();
+  }
+
+  Future<void> updatePriority(String orderId, String priority) async {
+    await _repo.updateKOTDetails(orderId, priority: priority);
+    await fetchOrders();
+    _ref.read(orderHistoryViewModelProvider.notifier).fetchOrders();
+  }
+
+  Future<void> closeDiningSession(
+    String sessionId, {
+    required String paymentMethod,
+    double discount = 0.0,
+    double coinsRedeemed = 0.0,
+    double coinsEarned = 0.0,
+  }) async {
+    await _repo.closeSession(
+      sessionId,
+      paymentMethod: paymentMethod,
+      discount: discount,
+      coinsRedeemed: coinsRedeemed,
+      coinsEarned: coinsEarned,
+    );
     await fetchOrders();
     _ref.read(orderHistoryViewModelProvider.notifier).fetchOrders();
   }
@@ -154,8 +208,9 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
     {'icon': Icons.table_restaurant_outlined, 'label': 'POS & Seating'},
     {'icon': Icons.restaurant_menu_outlined, 'label': 'Menu Editor'},
     {'icon': Icons.inventory_2_outlined, 'label': 'Staff & Inventory'},
-    {'icon': Icons.campaign_outlined, 'label': 'Promos & Social'},
+    {'icon': Icons.video_library_outlined, 'label': 'Reels & Offers'},
     {'icon': Icons.reviews_outlined, 'label': 'Customers & Reviews'},
+    {'icon': Icons.stars_outlined, 'label': 'Loyalty & Rewards'},
     {'icon': Icons.settings_outlined, 'label': 'Console Settings'},
   ];
 
@@ -403,6 +458,8 @@ class _OwnerDashboardScreenState extends ConsumerState<OwnerDashboardScreen> {
       case 7:
         return const _CustomerReviewsTab();
       case 8:
+        return const _OwnerLoyaltyTab();
+      case 9:
         return const _SettingsTab();
       default:
         return const _DashboardTab();
@@ -535,18 +592,73 @@ class _DashboardTab extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.point_of_sale, size: 16),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Live POS — Active Sessions',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
                             const Text(
-                              'Live POS Bill Generator',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              'One bill per dining session. No duplicates.',
+                              style: TextStyle(fontSize: 10, color: Colors.grey),
                             ),
                             const SizedBox(height: 12),
-                            ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: orders.length > 3 ? 3 : orders.length,
-                              itemBuilder: (context, idx) {
-                                final order = orders[idx];
-                                return _billGeneratorTile(context, order);
+                            // ── Session-based bill list ──────────────────────
+                            Consumer(
+                              builder: (context, ref, _) {
+                                final sessionsAsync = ref.watch(activeSessionsProvider);
+                                return sessionsAsync.when(
+                                  loading: () => const SizedBox(
+                                    height: 40,
+                                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                  ),
+                                  error: (e, _) => Text('Error: $e', style: const TextStyle(fontSize: 10, color: Colors.red)),
+                                  data: (sessions) {
+                                    // Only show active sessions (not closed/paid)
+                                    final activeSessions = sessions
+                                        .where((s) => s.isActive && s.masterOrderId != null)
+                                        .toList();
+
+                                    if (activeSessions.isEmpty) {
+                                      return Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: Colors.grey.shade300),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          'No active dining sessions',
+                                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      );
+                                    }
+
+                                    return ListView.separated(
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      itemCount: activeSessions.length > 5
+                                          ? 5
+                                          : activeSessions.length,
+                                      separatorBuilder: (_, __) => const Divider(height: 1),
+                                      itemBuilder: (context, idx) {
+                                        final session = activeSessions[idx];
+                                        // Get the master order from the orders list
+                                        final masterOrder = orders.cast<OrderEntity?>().firstWhere(
+                                              (o) => o?.id == session.masterOrderId,
+                                              orElse: () => null,
+                                            );
+                                        return _sessionBillTile(
+                                          context, session, masterOrder);
+                                      },
+                                    );
+                                  },
+                                );
                               },
                             ),
                           ],
@@ -607,7 +719,14 @@ class _DashboardTab extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   Icon(icon, color: color, size: 20),
                 ],
               ),
@@ -647,9 +766,29 @@ class _DashboardTab extends ConsumerWidget {
     );
   }
 
-  Widget _billGeneratorTile(BuildContext context, OrderEntity order) {
-    final subtotal = order.items.fold<double>(0, (sum, item) => sum + item.price * item.quantity);
-    final gst = subtotal * 0.18;
+  /// Session-based bill tile — ONE per table, no duplicates.
+  Widget _sessionBillTile(
+      BuildContext context, DiningSession session, OrderEntity? masterOrder) {
+    final subtotal = masterOrder?.subtotal ?? 0.0;
+    final gst = masterOrder?.tax ?? 0.0;
+    final itemCount = masterOrder?.items.fold<int>(0, (s, i) => s + i.quantity) ?? 0;
+
+    Color statusColor;
+    switch (session.status) {
+      case 'cooking':
+      case 'accepted':
+        statusColor = Colors.orange;
+        break;
+      case 'ready':
+      case 'served':
+        statusColor = Colors.green;
+        break;
+      case 'billing_ready':
+        statusColor = Colors.blue;
+        break;
+      default:
+        statusColor = Colors.grey;
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -660,33 +799,67 @@ class _DashboardTab extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    Text(
+                      session.orderNumber,
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.12),
+                        border: Border.all(color: statusColor.withValues(alpha: 0.5)),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Text(
+                        session.status.toUpperCase().replaceAll('_', ' '),
+                        style: TextStyle(
+                            fontSize: 7,
+                            color: statusColor,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
                 Text(
-                  'Order #${order.id.substring(order.id.length - 4).toUpperCase()} (${order.deliveryAddress})',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  'Table ${session.tableNumber} • $itemCount items • \$${subtotal.toStringAsFixed(2)} + GST \$${gst.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 9, color: Colors.grey),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'Subtotal: \$${subtotal.toStringAsFixed(2)} • GST: \$${gst.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 9, color: Colors.grey),
+                  session.sessionId,
+                  style: const TextStyle(fontSize: 8, color: Colors.grey),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
           ElevatedButton(
-            onPressed: () => _showInvoiceDialog(context, order),
+            onPressed: masterOrder != null
+                ? () => _showSessionInvoiceDialog(context, session, masterOrder)
+                : null,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              minimumSize: const Size(60, 24),
+              minimumSize: const Size(70, 26),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              backgroundColor: session.isFrozen ? Colors.green : null,
             ),
-            child: const Text('Gen Bill', style: TextStyle(fontSize: 9)),
+            child: Text(
+              session.isFrozen ? 'View Bill' : 'Gen Bill',
+              style: const TextStyle(fontSize: 9),
+            ),
           ),
         ],
       ),
     );
   }
 }
+
 
 // -------------------------------------------------------------
 // 1. AI Business Coach & Analytics Tab Widget
@@ -1252,14 +1425,20 @@ class _KdsTab extends ConsumerWidget {
 
   Color _getStatusColor(String status) {
     switch (status) {
+      case 'Received':
       case 'placed':
-        return Colors.red.shade400;
+        return Colors.orange;
+      case 'Preparing':
       case 'preparing':
-        return Colors.orange.shade400;
+        return Colors.amber.shade700;
+      case 'Ready to Serve':
       case 'out_for_delivery':
-        return Colors.blue.shade400;
+        return Colors.blue;
+      case 'Served':
+      case 'delivered':
+        return Colors.green;
       default:
-        return Colors.green.shade400;
+        return Colors.grey;
     }
   }
 
@@ -1267,49 +1446,95 @@ class _KdsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersState = ref.watch(ownerOrdersProvider);
     final notifier = ref.read(ownerOrdersProvider.notifier);
+    final repo = ref.watch(orderRepositoryProvider);
+    final loadStatus = repo.getKitchenLoadStatus();
 
-    return ordersState.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(child: Text('Error: $err')),
-      data: (orders) {
-        final activeOrders = orders
-            .where((o) => o.status != 'delivered' && o.status != 'cancelled')
-            .toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Kitchen Load Control Bar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          color: Theme.of(context).colorScheme.surfaceContainer,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.kitchen, color: AppTheme.primaryGold),
+                  const SizedBox(width: 8),
+                  const Text('Kitchen Load Management:', style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              Row(
+                children: [
+                  ...['Free', 'Moderate', 'Busy', 'Peak Hours', 'Maintenance'].map((status) {
+                    final isSelected = loadStatus == status;
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: ChoiceChip(
+                        label: Text(status),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          if (selected) {
+                            repo.setKitchenLoadStatus(status);
+                            notifier.fetchOrders();
+                          }
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ordersState.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Error: $err')),
+            data: (orders) {
+              final activeOrders = orders
+                  .where((o) => o.status != 'Served' && o.status != 'delivered' && o.status != 'cancelled' && o.status != 'Cancelled')
+                  .toList();
 
-        final width = MediaQuery.of(context).size.width;
-        final isLarge = width >= 900;
+              final width = MediaQuery.of(context).size.width;
+              final isLarge = width >= 900;
 
-        if (activeOrders.isEmpty) {
-          return const Center(child: Text('No active orders in KDS.'));
-        }
+              if (activeOrders.isEmpty) {
+                return const Center(child: Text('No active preparation orders in KDS queue.'));
+              }
 
-        // Split into lists based on status
-        final newOrders = activeOrders.where((o) => o.status == 'placed').toList();
-        final prepOrders = activeOrders.where((o) => o.status == 'preparing').toList();
-        final readyOrders = activeOrders.where((o) => o.status == 'out_for_delivery').toList();
+              // Split into lists based on status
+              final newOrders = activeOrders.where((o) => o.status == 'Received' || o.status == 'placed').toList();
+              final prepOrders = activeOrders.where((o) => o.status == 'Preparing' || o.status == 'preparing').toList();
+              final readyOrders = activeOrders.where((o) => o.status == 'Ready to Serve' || o.status == 'out_for_delivery').toList();
 
-        if (isLarge) {
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Expanded(child: _kdsColumn(context, 'New Received', newOrders, notifier)),
-                const SizedBox(width: 16),
-                Expanded(child: _kdsColumn(context, 'Preparing / Cooking', prepOrders, notifier)),
-                const SizedBox(width: 16),
-                Expanded(child: _kdsColumn(context, 'Ready / Serving', readyOrders, notifier)),
-              ],
-            ),
-          );
-        } else {
-          // List view on mobile
-          return ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: activeOrders.length,
-            itemBuilder: (context, index) => _kdsCard(context, activeOrders[index], notifier),
-          );
-        }
-      },
+              if (isLarge) {
+                return Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Expanded(child: _kdsColumn(context, 'New Received', newOrders, notifier)),
+                      const SizedBox(width: 16),
+                      Expanded(child: _kdsColumn(context, 'Preparing / Cooking', prepOrders, notifier)),
+                      const SizedBox(width: 16),
+                      Expanded(child: _kdsColumn(context, 'Ready / Serving', readyOrders, notifier)),
+                    ],
+                  ),
+                );
+              } else {
+                // List view on mobile
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: activeOrders.length,
+                  itemBuilder: (context, index) => _kdsCard(context, activeOrders[index], notifier),
+                );
+              }
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -1341,8 +1566,13 @@ class _KdsTab extends ConsumerWidget {
   }
 
   Widget _kdsCard(BuildContext context, OrderEntity order, OwnerOrdersNotifier notifier) {
+    final hasHighPriority = order.priority == 'high';
+
     return BlockContainer(
       margin: const EdgeInsets.only(bottom: 12),
+      color: hasHighPriority ? Colors.red.shade50.withValues(alpha: 0.1) : null,
+      borderColor: hasHighPriority ? Colors.redAccent : _getStatusColor(order.status),
+      borderWidth: hasHighPriority ? 3.0 : 1.5,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -1351,23 +1581,136 @@ class _KdsTab extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Order #${order.id.substring(order.id.length - 4)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.kotNumber ?? 'KOT-${order.id.substring(order.id.length - 3).toUpperCase()}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    if (order.diningSessionId != null)
+                      Text(
+                        'Session: ${order.diningSessionId}',
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(order.status),
+                    borderRadius: BorderRadius.zero,
+                  ),
+                  child: Text(
+                    order.status.toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 Text(
-                  order.status.toUpperCase(),
-                  style: TextStyle(color: _getStatusColor(order.status), fontWeight: FontWeight.bold, fontSize: 10),
+                  order.tableNumber != null ? 'TABLE: ${order.tableNumber}' : 'TAKEAWAY / DELIVERY',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'ETA: ${order.preparationTimeMinutes.toInt()}m',
+                  style: const TextStyle(fontSize: 11, color: AppTheme.primaryGold, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Cust: ${order.customerName ?? "Guest"}',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+                // Priority Toggle Badge
+                InkWell(
+                  onTap: () {
+                    final newPriority = order.priority == 'high' ? 'normal' : 'high';
+                    notifier.updatePriority(order.id, newPriority);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: hasHighPriority ? Colors.red : Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      order.priority.toUpperCase(),
+                      style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
               ],
             ),
             const Divider(),
             ...order.items.map((i) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${i.quantity}x ${i.name}'),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('${i.quantity}x ${i.name}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          Text(
+                            i.status,
+                            style: TextStyle(color: _getStatusColor(i.status), fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      if (i.spiceLevel != null || (i.addOns != null && i.addOns!.isNotEmpty) || i.notes != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12.0, top: 2),
+                          child: Text(
+                            'Custom: ${i.spiceLevel ?? "Medium"}${i.addOns != null && i.addOns!.isNotEmpty ? " + " + i.addOns!.join(", ") : ""}${i.notes != null ? " (" + i.notes! + ")" : ""}',
+                            style: TextStyle(fontSize: 10, color: Colors.orange.shade700, fontStyle: FontStyle.italic),
+                          ),
+                        ),
                     ],
                   ),
                 )),
+            if (order.specialInstructions != null) ...[
+              const Divider(),
+              Text(
+                'Notes: ${order.specialInstructions}',
+                style: const TextStyle(fontSize: 11, color: Colors.orange, fontStyle: FontStyle.italic),
+              ),
+            ],
+            const Divider(),
+            // Delay adjustment buttons
+            Row(
+              children: [
+                const Text('Delay: ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                const SizedBox(width: 4),
+                OutlinedButton(
+                  onPressed: () => notifier.updateOwnerDelay(order.id, 3.0),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('+3m', style: TextStyle(fontSize: 10)),
+                ),
+                const SizedBox(width: 4),
+                OutlinedButton(
+                  onPressed: () => notifier.updateOwnerDelay(order.id, 5.0),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('+5m', style: TextStyle(fontSize: 10)),
+                ),
+              ],
+            ),
             const Divider(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1375,27 +1718,22 @@ class _KdsTab extends ConsumerWidget {
                 TextButton(
                   onPressed: () => notifier.updateStatus(order.id, 'cancelled'),
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: const Text('Cancel'),
+                  child: const Text('Reject', style: TextStyle(fontSize: 11)),
                 ),
-                TextButton.icon(
-                  onPressed: () => _showInvoiceDialog(context, order),
-                  icon: const Icon(Icons.receipt_long, size: 14),
-                  label: const Text('Gen Bill', style: TextStyle(fontSize: 11)),
-                ),
-                if (order.status == 'placed')
+                if (order.status == 'Received' || order.status == 'placed')
                   ElevatedButton(
-                    onPressed: () => notifier.updateStatus(order.id, 'preparing'),
-                    child: const Text('Accept'),
+                    onPressed: () => notifier.updateStatus(order.id, 'Preparing'),
+                    child: const Text('Accept', style: TextStyle(fontSize: 11)),
                   ),
-                if (order.status == 'preparing')
+                if (order.status == 'Preparing' || order.status == 'preparing')
                   ElevatedButton(
-                    onPressed: () => notifier.updateStatus(order.id, 'out_for_delivery'),
-                    child: const Text('Cooked'),
+                    onPressed: () => notifier.updateStatus(order.id, 'Ready to Serve'),
+                    child: const Text('Ready', style: TextStyle(fontSize: 11)),
                   ),
-                if (order.status == 'out_for_delivery')
+                if (order.status == 'Ready to Serve' || order.status == 'out_for_delivery')
                   ElevatedButton(
-                    onPressed: () => notifier.updateStatus(order.id, 'delivered'),
-                    child: const Text('Served'),
+                    onPressed: () => notifier.updateStatus(order.id, 'Served'),
+                    child: const Text('Serve', style: TextStyle(fontSize: 11)),
                   ),
               ],
             )
@@ -1425,19 +1763,22 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
     return 0.0;
   }
 
-  void _showBillingSheet(TableState table) {
-    final subtotal = table.activeOrderItems.fold<double>(0, (sum, i) => sum + i.price * i.quantity);
-    final gst = subtotal * 0.18;
+  void _showBillingSheet(TableState table, List<OrderEntity> tableKots, String? activeSessionId) {
+    final subtotal = tableKots.fold<double>(0.0, (sum, kot) => sum + kot.subtotal);
+    final gst = subtotal * 0.08;
     final discountCodeController = TextEditingController();
     double discount = 0.0;
     String paymentMethod = 'card';
+    
+    // Check if all KOTs are Served
+    final bool allServed = tableKots.isNotEmpty && tableKots.every((o) => o.status == 'Served');
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setSheetState) {
-          final total = subtotal + gst - discount;
+          final total = (subtotal + gst - discount).clamp(0.0, double.infinity);
           return Padding(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -1458,12 +1799,34 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
                     ],
                   ),
                   const Divider(),
-                  ...table.activeOrderItems.map((i) => ListTile(
-                        title: Text(i.name),
-                        subtitle: Text('${i.quantity}x \$${i.price.toStringAsFixed(2)}'),
-                        trailing: Text('\$${(i.price * i.quantity).toStringAsFixed(2)}'),
+                  if (activeSessionId != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Text(
+                        'Dining Session ID: $activeSessionId',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+                      ),
+                    ),
+                  ...tableKots.map((kot) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
+                            child: Text(
+                              '${kot.kotNumber ?? "KOT"} (${kot.status})',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey),
+                            ),
+                          ),
+                          ...kot.items.map((i) => ListTile(
+                                title: Text(i.name),
+                                subtitle: Text('${i.quantity}x \$${i.price.toStringAsFixed(2)} - status: ${i.status}'),
+                                trailing: Text('\$${(i.price * i.quantity).toStringAsFixed(2)}'),
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                              )),
+                          const Divider(),
+                        ],
                       )),
-                  const Divider(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -1474,7 +1837,7 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('GST (18%)'),
+                      const Text('GST (8%)'),
                       Text('\$${gst.toStringAsFixed(2)}'),
                     ],
                   ),
@@ -1514,7 +1877,7 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
                   DropdownButtonFormField<String>(
                     initialValue: paymentMethod,
                     decoration: const InputDecoration(labelText: 'Payment Method'),
-                    items: ['card', 'upi', 'cash', 'wallet']
+                    items: ['card', 'upi', 'cash', 'wallet', 'net_banking']
                         .map((m) => DropdownMenuItem(value: m, child: Text(m.toUpperCase())))
                         .toList(),
                     onChanged: (val) {
@@ -1532,51 +1895,76 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () async {
-                      // Generate and complete order
-                      final order = OrderEntity(
-                        id: 'ord_pos_${DateTime.now().millisecondsSinceEpoch}',
-                        customerId: 'pos_customer',
-                        restaurantId: 'rest_456',
-                        items: table.activeOrderItems,
-                        subtotal: subtotal,
-                        tax: gst,
-                        deliveryFee: 0.0,
-                        total: total,
-                        status: 'delivered',
-                        deliveryAddress: 'Table ${table.id}',
-                        paymentMethod: paymentMethod,
-                        createdAt: DateTime.now(),
-                        updatedAt: DateTime.now(),
-                      );
+                  if (!allServed)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning, color: Colors.red),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Billing locked! All KOTs must be Served before generating final invoice.',
+                              style: TextStyle(color: Colors.red[800], fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (activeSessionId != null) {
+                          final double coinsEarned = subtotal * 0.10;
+                          await ref.read(ownerOrdersProvider.notifier).closeDiningSession(
+                                activeSessionId,
+                                paymentMethod: paymentMethod,
+                                discount: discount,
+                                coinsEarned: coinsEarned,
+                              );
+                        } else {
+                          for (final kot in tableKots) {
+                            await ref.read(ownerOrdersProvider.notifier).updateStatus(kot.id, 'Served');
+                          }
+                        }
 
-                      await ref.read(ownerOrdersProvider.notifier).addMockOrder(order);
+                        setState(() {
+                          table.status = 'available';
+                          table.activeOrderItems = [];
+                          _selectedTable = null;
+                        });
 
-                      // Clear table items & set available
-                      setState(() {
-                        table.status = 'available';
-                        table.activeOrderItems = [];
-                        _selectedTable = null;
-                      });
+                        if (!context.mounted) return;
+                        Navigator.pop(context);
 
-                      if (!context.mounted) return;
-                      Navigator.pop(context);
-
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Invoice Printed'),
-                          content: const Text('Digital Invoice generated & sent to POS thermal printer successfully!'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))
-                          ],
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                    child: const Text('Complete Payment & Print Bill'),
-                  ),
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Invoice Completed'),
+                            content: Text(
+                              'POS Invoice generated successfully!\n\n'
+                              '• Subtotal: \$${subtotal.toStringAsFixed(2)}\n'
+                              '• GST (8%): \$${gst.toStringAsFixed(2)}\n'
+                              '• Discount: -\$${discount.toStringAsFixed(2)}\n'
+                              '• Grand Total: \$${total.toStringAsFixed(2)}\n'
+                              '• Payment: ${paymentMethod.toUpperCase()}\n'
+                              '• Coins Awarded: ${subtotal.toInt()} SuperCoins\n\n'
+                              'Table freed successfully.',
+                            ),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))
+                            ],
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                      child: const Text('Complete Payment & Print Bill'),
+                    ),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -1590,6 +1978,33 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
   @override
   Widget build(BuildContext context) {
     final tables = ref.watch(tableStateProvider);
+    final orders = ref.watch(ownerOrdersProvider).value ?? [];
+
+    // Dynamically update Table occupancy & items from actual active KOTs in the database/repository
+    for (final table in tables) {
+      final tableKots = orders.where((o) => o.tableNumber == table.id && o.status != 'delivered' && o.status != 'cancelled' && o.paymentStatus == 'unpaid').toList();
+      if (tableKots.isNotEmpty) {
+        table.status = 'occupied';
+        final List<CartItemEntity> combined = [];
+        for (final kot in tableKots) {
+          combined.addAll(kot.items);
+        }
+        table.activeOrderItems = combined;
+      } else {
+        if (table.status == 'occupied') {
+          table.status = 'available';
+          table.activeOrderItems = const [];
+        }
+      }
+    }
+
+    // Refresh selected table reference if set
+    TableState? currentSelected;
+    if (_selectedTable != null) {
+      try {
+        currentSelected = tables.firstWhere((t) => t.id == _selectedTable!.id);
+      } catch (_) {}
+    }
 
     return Scaffold(
       body: Row(
@@ -1607,7 +2022,7 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
               itemCount: tables.length,
               itemBuilder: (context, index) {
                 final table = tables[index];
-                final isSelected = _selectedTable?.id == table.id;
+                final isSelected = currentSelected?.id == table.id;
                 Color tColor = Colors.green.shade400;
                 if (table.status == 'occupied') tColor = Colors.red.shade400;
                 if (table.status == 'reserved') tColor = Colors.blue.shade400;
@@ -1645,7 +2060,7 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
               },
             ),
           ),
-          if (_selectedTable != null)
+          if (currentSelected != null)
             Container(
               width: 300,
               decoration: BoxDecoration(
@@ -1653,71 +2068,122 @@ class _TablePosTabState extends ConsumerState<_TablePosTab> {
                 color: Theme.of(context).colorScheme.surfaceContainerLowest,
               ),
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('Table Details: ${_selectedTable!.id}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 12),
-                  Text('Capacity: ${_selectedTable!.capacity} Persons'),
-                  Text('Current Status: ${_selectedTable!.status.toUpperCase()}'),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.qr_code_2, color: Colors.blue),
-                    label: const Text('Digital Menu QR Code'),
-                    onPressed: () => _showTableQrDialog(context, _selectedTable!),
-                  ),
-                  const Divider(),
-                  if (_selectedTable!.status == 'occupied') ...[
-                    const Text('Active Bill items:', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: _selectedTable!.activeOrderItems.length,
-                        itemBuilder: (context, idx) {
-                          final item = _selectedTable!.activeOrderItems[idx];
-                          return Text('${item.quantity}x ${item.name} (\$${item.price.toStringAsFixed(2)})');
-                        },
+              child: Builder(
+                builder: (context) {
+                  final tableKots = orders.where((o) => o.tableNumber == currentSelected!.id && o.status != 'delivered' && o.status != 'cancelled' && o.paymentStatus == 'unpaid').toList();
+                  String? activeSessionId;
+                  for (final kot in tableKots) {
+                    if (kot.diningSessionId != null) {
+                      activeSessionId = kot.diningSessionId;
+                      break;
+                    }
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('Table Details: ${currentSelected!.id}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 12),
+                      Text('Capacity: ${currentSelected.capacity} Persons'),
+                      Text('Current Status: ${currentSelected.status.toUpperCase()}'),
+                      if (activeSessionId != null) ...[
+                        const SizedBox(height: 4),
+                        Text('Session: $activeSessionId', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryGold, fontSize: 12)),
+                      ],
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.qr_code_2, color: Colors.blue),
+                        label: const Text('Digital Menu QR Code'),
+                        onPressed: () => _showTableQrDialog(context, currentSelected!),
                       ),
-                    ),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.receipt_long),
-                      label: const Text('Checkout / Print POS'),
-                      onPressed: () => _showBillingSheet(_selectedTable!),
-                    ),
-                  ] else ...[
-                    const Spacer(),
-                    if (_selectedTable!.status == 'available')
-                      ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _selectedTable!.status = 'reserved';
-                          });
-                        },
-                        child: const Text('Reserve Table'),
-                      ),
-                    if (_selectedTable!.status == 'reserved')
-                      ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _selectedTable!.status = 'available';
-                          });
-                        },
-                        child: const Text('Cancel Reservation'),
-                      ),
-                    const SizedBox(height: 8),
-                    OutlinedButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedTable!.status = 'occupied';
-                          _selectedTable!.activeOrderItems = [
-                            const CartItemEntity(itemId: 'menu_001', name: 'Truffle Mushroom Fettuccine', price: 18.50, quantity: 1, imageUrl: ''),
-                          ];
-                        });
-                      },
-                      child: const Text('Seat Guests (Seeded Pizza)'),
-                    ),
-                  ]
-                ],
+                      const Divider(),
+                      if (currentSelected.status == 'occupied') ...[
+                        const Text('Active Tickets & Items:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: tableKots.length,
+                            itemBuilder: (context, idx) {
+                              final kot = tableKots[idx];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${kot.kotNumber ?? "KOT"} - ${kot.status}',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.primaryGold),
+                                    ),
+                                    ...kot.items.map((item) => Padding(
+                                          padding: const EdgeInsets.only(left: 8.0, top: 2),
+                                          child: Text('• ${item.quantity}x ${item.name} (${item.status})', style: const TextStyle(fontSize: 12)),
+                                        )),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.receipt_long),
+                          label: const Text('Checkout / Print POS'),
+                          onPressed: () => _showBillingSheet(currentSelected!, tableKots, activeSessionId),
+                        ),
+                      ] else ...[
+                        const Spacer(),
+                        if (currentSelected.status == 'available')
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                currentSelected!.status = 'reserved';
+                              });
+                            },
+                            child: const Text('Reserve Table'),
+                          ),
+                        if (currentSelected.status == 'reserved')
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                currentSelected!.status = 'available';
+                              });
+                            },
+                            child: const Text('Cancel Reservation'),
+                          ),
+                        const SizedBox(height: 8),
+                        OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              currentSelected!.status = 'occupied';
+                              // Seed dummy session / KOT items
+                              final order = OrderEntity(
+                                id: 'ord_seeded_${DateTime.now().millisecondsSinceEpoch}',
+                                customerId: 'pos_customer',
+                                restaurantId: 'rest_456',
+                                items: const [
+                                  CartItemEntity(itemId: 'menu_001', name: 'Truffle Mushroom Risotto', price: 24.99, quantity: 1, imageUrl: '', status: 'Served'),
+                                ],
+                                subtotal: 24.99,
+                                tax: 24.99 * 0.08,
+                                deliveryFee: 0.0,
+                                total: 24.99 * 1.08,
+                                status: 'Served',
+                                deliveryAddress: 'Table ${currentSelected!.id}',
+                                paymentMethod: 'card',
+                                createdAt: DateTime.now(),
+                                updatedAt: DateTime.now(),
+                                tableNumber: currentSelected.id,
+                                diningSessionId: 'DS-seeded-${currentSelected.id}',
+                                kotNumber: 'KOT-001',
+                              );
+                              ref.read(ownerOrdersProvider.notifier).addMockOrder(order);
+                            });
+                          },
+                          child: const Text('Seat Guests (Seeded Risotto)'),
+                        ),
+                      ]
+                    ],
+                  );
+                }
               ),
             )
         ],
@@ -1918,6 +2384,16 @@ class _MenuEditorTabState extends ConsumerState<_MenuEditorTab> {
     super.dispose();
   }
 
+  Future<void> _pickImage(StateSetter setDialogState) async {
+    final imageResult = await uploader.pickLocalImage(context);
+    if (imageResult != null) {
+      setDialogState(() {
+        _imageUrl = imageResult;
+        _imageUrlController.text = imageResult;
+      });
+    }
+  }
+
   Widget _presetPhotoBubble(String label, String url, StateSetter setDialogState) {
     final isSelected = _imageUrl == url;
     return Padding(
@@ -1976,18 +2452,51 @@ class _MenuEditorTabState extends ConsumerState<_MenuEditorTab> {
                       decoration: const InputDecoration(labelText: 'Description'),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: _imageUrlController,
-                      decoration: const InputDecoration(
-                        labelText: 'Photo Image URL',
-                        hintText: 'Enter URL or tap preset below',
-                      ),
-                      onChanged: (val) {
-                        setDialogState(() {
-                          _imageUrl = val.trim();
-                        });
-                      },
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _imageUrlController,
+                            decoration: const InputDecoration(
+                              labelText: 'Photo Image URL',
+                              hintText: 'Enter URL or upload file',
+                            ),
+                            onChanged: (val) {
+                              setDialogState(() {
+                                _imageUrl = val.trim();
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.file_upload, color: Colors.blue),
+                          tooltip: 'Upload Food Image',
+                          onPressed: () => _pickImage(setDialogState),
+                        ),
+                      ],
                     ),
+                    if (_imageUrl.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 100,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: FoodImage(
+                            imageUrl: _imageUrl,
+                            fit: BoxFit.cover,
+                            errorWidget: const Center(
+                              child: Text('Invalid image preview', style: TextStyle(fontSize: 10, color: Colors.red)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     const Align(
                       alignment: Alignment.centerLeft,
@@ -2108,18 +2617,51 @@ class _MenuEditorTabState extends ConsumerState<_MenuEditorTab> {
                       decoration: const InputDecoration(labelText: 'Description'),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: _imageUrlController,
-                      decoration: const InputDecoration(
-                        labelText: 'Photo Image URL',
-                        hintText: 'Enter URL or tap preset below',
-                      ),
-                      onChanged: (val) {
-                        setDialogState(() {
-                          _imageUrl = val.trim();
-                        });
-                      },
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _imageUrlController,
+                            decoration: const InputDecoration(
+                              labelText: 'Photo Image URL',
+                              hintText: 'Enter URL or upload file',
+                            ),
+                            onChanged: (val) {
+                              setDialogState(() {
+                                _imageUrl = val.trim();
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.file_upload, color: Colors.blue),
+                          tooltip: 'Upload Food Image',
+                          onPressed: () => _pickImage(setDialogState),
+                        ),
+                      ],
                     ),
+                    if (_imageUrl.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 100,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: FoodImage(
+                            imageUrl: _imageUrl,
+                            fit: BoxFit.cover,
+                            errorWidget: const Center(
+                              child: Text('Invalid image preview', style: TextStyle(fontSize: 10, color: Colors.red)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     const Align(
                       alignment: Alignment.centerLeft,
@@ -2229,18 +2771,16 @@ class _MenuEditorTabState extends ConsumerState<_MenuEditorTab> {
 
               return BlockContainer(
                 child: ListTile(
-                  leading: item.imageUrl.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.zero,
-                          child: Image.network(
-                            item.imageUrl,
-                            width: 48,
-                            height: 48,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => const Icon(Icons.fastfood),
-                          ),
-                        )
-                      : const Icon(Icons.fastfood),
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: FoodImage(
+                      imageUrl: item.imageUrl,
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
+                      errorWidget: const Icon(Icons.fastfood),
+                    ),
+                  ),
                   title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('\$${item.price.toStringAsFixed(2)} • ${item.category}'),
                   trailing: Row(
@@ -3337,127 +3877,632 @@ class _NotificationBellWidget extends StatelessWidget {
   }
 }
 
-void _showInvoiceDialog(BuildContext context, OrderEntity order) {
-  final subtotal = order.subtotal;
-  final gst = order.tax;
-  final discount = order.discount;
-  final grandTotal = order.total;
+/// Session-level invoice dialog.
+/// Always generated from the single master order tied to the session.
+/// The Order Number NEVER changes — same #A1025 throughout the meal.
+void _showSessionInvoiceDialog(
+    BuildContext context, DiningSession session, OrderEntity masterOrder) {
+  final subtotal = masterOrder.subtotal;
+  final gst = masterOrder.tax;
+  final discount = masterOrder.discount;
+  final coinDiscount = masterOrder.coinDiscount ?? 0.0;
+  final grandTotal = masterOrder.total;
+  final invoiceId = 'INV-${session.sessionId.replaceAll('SID-', '')}';
 
   showDialog(
     context: context,
-    builder: (context) => AlertDialog(
+    builder: (ctx) => AlertDialog(
       title: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('Gourmet Bistro Invoice', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Expanded(
+            child: Text('Gourmet Bistro',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                overflow: TextOverflow.ellipsis),
+          ),
           IconButton(
             icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(context),
-          )
+            onPressed: () => Navigator.pop(ctx),
+          ),
         ],
       ),
-      content: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('GSTIN: 27AAAAA1111A1Z1', style: TextStyle(fontSize: 10, color: Colors.grey)),
-            const Text('Main Branch, Gourmet Ave', style: TextStyle(fontSize: 10, color: Colors.grey)),
-            const Divider(),
-            Text('Invoice #: INV-${order.id.substring(order.id.length - 4).toUpperCase()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-            Text('Date: ${order.createdAt.toLocal().toString().split('.')[0]}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-            Text('Location: ${order.deliveryAddress}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-            const Divider(),
-            const SizedBox(height: 8),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: Text('Item', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                SizedBox(width: 12),
-                Text('Qty', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                SizedBox(width: 24),
-                Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ...order.items.map((item) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Row(
+      content: SizedBox(
+        width: 380,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Session Info Header ──────────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue.shade100),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Order ${session.orderNumber}',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  color: Colors.black87),
+                            ),
+                            Text(
+                              'Table ${session.tableNumber}',
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black54),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text('LIVE BILL',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text('Session: ${session.sessionId}',
+                        style: const TextStyle(
+                            fontSize: 9, color: Colors.grey)),
+                    Text('Invoice: $invoiceId',
+                        style: const TextStyle(
+                            fontSize: 9, color: Colors.grey)),
+                    Text(
+                      'Session started: ${session.startTime.toLocal().toString().split('.')[0]}',
+                      style:
+                          const TextStyle(fontSize: 9, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text('GSTIN: 27AAAAA1111A1Z1',
+                  style: TextStyle(fontSize: 10, color: Colors.grey)),
+              const Text('Main Branch, Gourmet Ave',
+                  style: TextStyle(fontSize: 10, color: Colors.grey)),
+              const Divider(),
+              // ── Items (ALL consolidated items from the session) ──────
+              const Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(child: Text(item.name, style: const TextStyle(fontSize: 12))),
-                  const SizedBox(width: 12),
-                  Text('${item.quantity}', style: const TextStyle(fontSize: 12)),
-                  const SizedBox(width: 24),
-                  Text('\$${(item.price * item.quantity).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
+                  Expanded(
+                      child: Text('Item',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 12))),
+                  SizedBox(width: 12),
+                  Text('Qty',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 12)),
+                  SizedBox(width: 24),
+                  Text('Total',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 12)),
                 ],
               ),
-            )),
-            const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Subtotal', style: TextStyle(fontSize: 12)),
-                Text('\$${subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('GST (18%)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                Text('\$${gst.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            if (order.deliveryFee > 0)
+              const SizedBox(height: 6),
+              ...masterOrder.items.map((item) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                            child: Text(item.name,
+                                style: const TextStyle(fontSize: 12))),
+                        const SizedBox(width: 12),
+                        Text('${item.quantity}',
+                            style: const TextStyle(fontSize: 12)),
+                        const SizedBox(width: 24),
+                        Text(
+                            '\$${(item.price * item.quantity).toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  )),
+              const Divider(),
+              // ── Totals ───────────────────────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Delivery Fee', style: TextStyle(fontSize: 12)),
-                  Text('\$${order.deliveryFee.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
+                  const Text('Subtotal',
+                      style: TextStyle(fontSize: 12)),
+                  Text('\$${subtotal.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 12)),
                 ],
               ),
-            if (discount > 0)
+              const SizedBox(height: 4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Discount Applied', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
-                  Text('-\$${discount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                  const Text('GST (18%)',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
+                  Text('\$${gst.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w600)),
                 ],
               ),
-            const Divider(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Grand Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                Text('\$${grandTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Theme.of(context).colorScheme.primary)),
+              if (discount > 0) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Discount',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.green)),
+                    Text('-\$${discount.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.green)),
+                  ],
+                ),
               ],
-            ),
-            const SizedBox(height: 16),
-            const Center(
-              child: Text(
-                '--- Thank You for Dining with Us ---',
-                style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
+              if (coinDiscount > 0) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('SuperCoins Discount',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.amber)),
+                    Text('-\$${coinDiscount.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.amber)),
+                  ],
+                ),
+              ],
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Grand Total',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text('\$${grandTotal.toStringAsFixed(2)}',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Theme.of(ctx).colorScheme.primary)),
+                ],
               ),
-            )
-          ],
+              const SizedBox(height: 16),
+              const Center(
+                child: Text(
+                  '— Thank You for Dining with Us —',
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
         OutlinedButton.icon(
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
+            ScaffoldMessenger.of(ctx).showSnackBar(
               const SnackBar(content: Text('Simulating receipt print...')),
             );
-            Navigator.pop(context);
+            Navigator.pop(ctx);
           },
           icon: const Icon(Icons.print),
           label: const Text('Print Receipt'),
         ),
         ElevatedButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(ctx),
           child: const Text('Close'),
         ),
       ],
     ),
   );
+}
+
+// -------------------------------------------------------------
+// Loyalty & Rewards Dashboard Tab Widget
+// -------------------------------------------------------------
+class _OwnerLoyaltyTab extends ConsumerStatefulWidget {
+  const _OwnerLoyaltyTab();
+
+  @override
+  ConsumerState<_OwnerLoyaltyTab> createState() => _OwnerLoyaltyTabState();
+}
+
+class _OwnerLoyaltyTabState extends ConsumerState<_OwnerLoyaltyTab> {
+  final _campaignNameController = TextEditingController();
+  final _campaignDescController = TextEditingController();
+  double _campaignMultiplier = 2.0;
+
+  final _offerTitleController = TextEditingController();
+  final _offerDescController = TextEditingController();
+  final _offerCostController = TextEditingController();
+  final _offerCodeController = TextEditingController();
+  String _offerCategory = 'beverage';
+
+  @override
+  void dispose() {
+    _campaignNameController.dispose();
+    _campaignDescController.dispose();
+    _offerTitleController.dispose();
+    _offerDescController.dispose();
+    _offerCostController.dispose();
+    _offerCodeController.dispose();
+    super.dispose();
+  }
+
+  void _launchCampaign() {
+    final name = _campaignNameController.text.trim();
+    final desc = _campaignDescController.text.trim();
+    if (name.isEmpty || desc.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter campaign details.')),
+      );
+      return;
+    }
+    final newCampaign = LoyaltyCampaign(
+      id: 'camp_${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      description: desc,
+      multiplier: _campaignMultiplier,
+      isActive: true,
+    );
+    ref.read(loyaltyCampaignsProvider.notifier).addCampaign(newCampaign);
+    _campaignNameController.clear();
+    _campaignDescController.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Loyalty Campaign "$name" launched successfully!')),
+    );
+  }
+
+  void _publishOffer() {
+    final title = _offerTitleController.text.trim();
+    final desc = _offerDescController.text.trim();
+    final costStr = _offerCostController.text.trim();
+    final code = _offerCodeController.text.trim().toUpperCase();
+
+    if (title.isEmpty || desc.isEmpty || costStr.isEmpty || code.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill out all reward offer details.')),
+      );
+      return;
+    }
+
+    final cost = double.tryParse(costStr);
+    if (cost == null || cost <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid cost in coins.')),
+      );
+      return;
+    }
+
+    final newOffer = RewardOfferEntity(
+      id: 'offer_${DateTime.now().millisecondsSinceEpoch}',
+      title: title,
+      description: desc,
+      costInCoins: cost,
+      category: _offerCategory,
+      imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80',
+      isActive: true,
+      promoCode: code,
+    );
+
+    ref.read(rewardStoreProvider.notifier).createOffer(newOffer);
+    _offerTitleController.clear();
+    _offerDescController.clear();
+    _offerCostController.clear();
+    _offerCodeController.clear();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Reward offer "$title" published successfully!')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final campaigns = ref.watch(loyaltyCampaignsProvider);
+    final offers = ref.watch(rewardStoreProvider);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Loyalty & Customer Rewards Console',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text('Manage loyalty rewards, publish discount store offers, and monitor top customer stats.'),
+          const SizedBox(height: 24),
+
+          // Loyalty Stats Row
+          Row(
+            children: [
+              Expanded(
+                child: _buildOwnerKpiCard(
+                  title: 'Total SuperCoins Issued',
+                  value: '3,270 Coins',
+                  icon: Icons.add_circle,
+                  color: Colors.green,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildOwnerKpiCard(
+                  title: 'Total SuperCoins Redeemed',
+                  value: '840 Coins',
+                  icon: Icons.remove_circle,
+                  color: Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildOwnerKpiCard(
+                  title: 'Loyalty Participation Rate',
+                  value: '84%',
+                  icon: Icons.insights,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+
+          // Split Layout: Earning Campaigns & Publish Store Items
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left Column: Active Campaigns List & Creator
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Promotional Earning Campaigns',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    ...campaigns.map((c) => _buildCampaignItem(c)),
+                    const SizedBox(height: 32),
+                    _buildCampaignCreatorCard(),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 32),
+              // Right Column: Reward Store Offers List & Creator
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Published Reward Store Offers',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    ...offers.map((o) => _buildOfferListItem(o)),
+                    const SizedBox(height: 32),
+                    _buildOfferCreatorCard(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOwnerKpiCard({required String title, required String value, required IconData icon, required Color color}) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withOpacity(0.1),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 4),
+                Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCampaignItem(LoyaltyCampaign c) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('${c.description}\nMultiplier: ${c.multiplier}x'),
+        isThreeLine: true,
+        trailing: Switch(
+          value: c.isActive,
+          activeColor: AppTheme.primaryGold,
+          onChanged: (_) {
+            ref.read(loyaltyCampaignsProvider.notifier).toggleCampaign(c.id);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOfferListItem(RewardOfferEntity o) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        title: Text(o.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('${o.description}\nCost: ${o.costInCoins.toInt()} Coins | Code: ${o.promoCode}'),
+        isThreeLine: true,
+        trailing: Switch(
+          value: o.isActive,
+          activeColor: AppTheme.primaryGold,
+          onChanged: (_) {
+            ref.read(rewardStoreProvider.notifier).toggleOfferStatus(o.id);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCampaignCreatorCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Launch New Reward Campaign', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _campaignNameController,
+              decoration: const InputDecoration(labelText: 'Campaign Name (e.g. Weekend Double Coins)'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _campaignDescController,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Earning Multiplier:'),
+                DropdownButton<double>(
+                  value: _campaignMultiplier,
+                  items: [1.5, 2.0, 3.0].map((val) {
+                    return DropdownMenuItem<double>(
+                      value: val,
+                      child: Text('${val}x'),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _campaignMultiplier = val;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _launchCampaign,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                backgroundColor: AppTheme.primaryGold,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('LAUNCH CAMPAIGN', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOfferCreatorCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Publish New Reward Offer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _offerTitleController,
+              decoration: const InputDecoration(labelText: 'Offer Title (e.g. Free Hot Fudge Brownie)'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _offerDescController,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _offerCostController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Cost (Coins)'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextField(
+                    controller: _offerCodeController,
+                    decoration: const InputDecoration(labelText: 'Promo Code'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Category:'),
+                DropdownButton<String>(
+                  value: _offerCategory,
+                  items: ['beverage', 'dessert', 'discount'].map((val) {
+                    return DropdownMenuItem<String>(
+                      value: val,
+                      child: Text(val.toUpperCase()),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _offerCategory = val;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _publishOffer,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                backgroundColor: AppTheme.primaryGold,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('PUBLISH REWARD OFFER', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

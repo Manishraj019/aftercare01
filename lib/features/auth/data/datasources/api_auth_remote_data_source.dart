@@ -7,26 +7,31 @@ import 'package:restaurantos/features/auth/data/datasources/auth_remote_data_sou
 class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
   String get baseUrl => dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000/api';
 
+  static UserModel? _mockPersistentUser;
+
   @override
   Future<UserModel> signInWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-      }),
-    );
+    // Mock login for demo purposes
+    await Future.delayed(const Duration(milliseconds: 300)); // simulate network delay
+    String role = 'Customer';
+    if (email.contains('admin') || email.contains('staff')) role = 'Admin';
+    if (email.contains('owner') || email.contains('hotel')) role = 'Hotel';
+    if (email.contains('chef')) role = 'Chef';
+    if (email.contains('waiter') || email.contains('inventory')) role = 'Waiter';
 
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      return UserModel.fromJson(json['user']);
-    } else {
-      throw Exception('Failed to sign in: ${response.statusCode}');
-    }
+    final user = UserModel(
+      uid: 'demo_user_123',
+      name: 'Demo User',
+      email: email,
+      role: role,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    _mockPersistentUser = user;
+    return user;
   }
 
   @override
@@ -37,38 +42,33 @@ class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
     required String role,
     String? phoneNumber,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'name': name,
-        'email': email,
-        'password': password,
-        'role': role,
-        if (phoneNumber != null) 'phoneNumber': phoneNumber,
-      }),
+    // Mock register for demo purposes
+    await Future.delayed(const Duration(milliseconds: 300)); // simulate network delay
+    final user = UserModel(
+      uid: 'demo_user_new',
+      name: name,
+      email: email,
+      role: role,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
-
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      return UserModel.fromJson(json['user']);
-    } else {
-      throw Exception('Failed to register: ${response.statusCode}');
-    }
+    _mockPersistentUser = user;
+    return user;
   }
 
   @override
   Future<void> signOut() async {
     // In a stateless JWT REST API, sign out is usually handled by clearing tokens locally.
     // If your backend requires invalidating a token, make an API call here.
+    _mockPersistentUser = null;
     return;
   }
 
   @override
   Future<UserModel?> getCurrentUser() async {
     // In a real app, you would retrieve the JWT from secure storage, and send a GET /auth/me request.
-    // For now, this returns null to simulate unauthenticated initial state.
-    return null; 
+    // For now, this returns the simulated authenticated state from memory.
+    return _mockPersistentUser; 
   }
 
   @override

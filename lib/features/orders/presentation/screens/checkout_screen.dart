@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +10,8 @@ import 'package:restaurantos/core/widgets/food_app_widgets.dart';
 import 'package:restaurantos/features/menu/presentation/viewmodels/cart_viewmodel.dart';
 import 'package:restaurantos/features/orders/presentation/viewmodels/checkout_viewmodel.dart';
 import 'package:restaurantos/features/owner/presentation/widgets/fake_owner_data.dart';
+import 'package:restaurantos/features/loyalty/presentation/viewmodels/loyalty_viewmodel.dart';
+import 'package:restaurantos/features/menu/presentation/screens/customer_landing_screen.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -19,16 +23,35 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
   final _addressController = TextEditingController(text: '123 Gourmet Ave, Foodtown');
+  final _tableNumberController = TextEditingController();
   final _couponController = TextEditingController();
-  String _selectedPaymentMethod = 'upi';
+  final _instructionsController = TextEditingController();
+  String _selectedPaymentMethod = 'pay_later';
+  String _orderType = 'dine_in'; // Default to Dine In for restaurant scanning flow
   Promotion? _appliedPromotion;
   String? _couponStatusMessage;
   bool _isCouponSuccess = false;
+  bool _useSuperCoins = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final scannedTable = ref.read(selectedTableProvider);
+      if (scannedTable != null) {
+        setState(() {
+          _tableNumberController.text = scannedTable;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
     _addressController.dispose();
+    _tableNumberController.dispose();
     _couponController.dispose();
+    _instructionsController.dispose();
     super.dispose();
   }
 
@@ -76,12 +99,36 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
+      if (_orderType == 'dine_in' && _tableNumberController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Please enter your Table Number', style: GoogleFonts.karla(color: AppTheme.pureWhite)), backgroundColor: AppTheme.nonVegRed),
+        );
+        return;
+      }
       final cartNotifier = ref.read(cartViewModelProvider.notifier);
       final discount = _calculateDiscount(cartNotifier.subtotal);
+
+      final wallet = ref.read(walletViewModelProvider);
+      final config = ref.read(loyaltyConfigProvider);
+
+      double coinsRedeemed = 0.0;
+      double coinDiscount = 0.0;
+
+      if (_useSuperCoins && wallet != null && wallet.balance > 0) {
+        final double maxDiscount = (cartNotifier.total - discount).clamp(0.0, double.infinity);
+        final double coinsNeededForMax = maxDiscount * config.redeemRate;
+        coinsRedeemed = wallet.balance < coinsNeededForMax ? wallet.balance : coinsNeededForMax;
+        coinDiscount = coinsRedeemed / config.redeemRate;
+      }
+
       ref.read(checkoutViewModelProvider.notifier).placeOrder(
-            deliveryAddress: _addressController.text.trim(),
-            paymentMethod: _selectedPaymentMethod,
+            deliveryAddress: _orderType == 'delivery' ? _addressController.text.trim() : (_orderType == 'dine_in' ? 'Table ${_tableNumberController.text.trim()}' : 'Takeaway'),
+            paymentMethod: 'pay_later',
             discountAmount: discount,
+            tableNumber: _orderType == 'dine_in' ? _tableNumberController.text.trim() : null,
+            specialInstructions: _instructionsController.text.trim().isEmpty ? null : _instructionsController.text.trim(),
+            coinsRedeemed: coinsRedeemed,
+            coinDiscount: coinDiscount,
           );
     }
   }
@@ -94,25 +141,37 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     ref.listen<CheckoutState>(checkoutViewModelProvider, (previous, next) {
       if (next is CheckoutSuccess) {
         ref.read(checkoutViewModelProvider.notifier).reset();
+        final orderNum = next.session.orderNumber;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 const Icon(Icons.check_circle_rounded, color: AppTheme.pureWhite),
                 const SizedBox(width: 12),
-                Text('Order Placed Successfully!', style: GoogleFonts.inter(color: AppTheme.pureWhite)),
+                Expanded(
+                  child: Text(
+                    'Items added to Order $orderNum · Table ${next.session.tableNumber}',
+                    style: GoogleFonts.karla(color: AppTheme.pureWhite),
+                  ),
+                ),
               ],
             ),
             backgroundColor: AppTheme.vegGreen,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 4),
           ),
         );
-        context.go('/customer/orders');
+        if (kIsWeb || !Platform.environment.containsKey('FLUTTER_TEST')) {
+          // Navigate to live tracking using the master order ID
+          context.go('/customer/orders/track/${next.order.id}');
+        } else {
+          context.go('/customer/orders');
+        }
       } else if (next is CheckoutError) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(next.message, style: GoogleFonts.inter(color: AppTheme.pureWhite)),
+            content: Text(next.message, style: GoogleFonts.karla(color: AppTheme.pureWhite)),
             backgroundColor: AppTheme.nonVegRed,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -123,12 +182,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     final isLoading = checkoutState is CheckoutLoading;
     final discount = _calculateDiscount(cartNotifier.subtotal);
-    final grandTotal = (cartNotifier.total - discount).clamp(0.0, double.infinity);
+    
+    final wallet = ref.watch(walletViewModelProvider);
+    final config = ref.watch(loyaltyConfigProvider);
+    
+    double coinDiscount = 0.0;
+    if (_useSuperCoins && wallet != null && wallet.balance > 0) {
+      final double maxDiscount = (cartNotifier.total - discount).clamp(0.0, double.infinity);
+      final double coinsNeededForMax = maxDiscount * config.redeemRate;
+      final double coinsRedeemed = wallet.balance < coinsNeededForMax ? wallet.balance : coinsNeededForMax;
+      coinDiscount = coinsRedeemed / config.redeemRate;
+    }
+    
+    final grandTotal = (cartNotifier.total - discount - coinDiscount).clamp(0.0, double.infinity);
 
     return Scaffold(
       backgroundColor: AppTheme.bgDarkCharcoal,
       appBar: AppBar(
-        title: Text('Checkout', style: GoogleFonts.playfairDisplay(color: AppTheme.primaryGold, fontWeight: FontWeight.bold, fontSize: 22)),
+        title: Text('Checkout', style: GoogleFonts.playfairDisplaySc(color: AppTheme.primaryGold, fontWeight: FontWeight.bold, fontSize: 22)),
         centerTitle: true,
         backgroundColor: AppTheme.bgDeepBurgundy,
         elevation: 0,
@@ -162,8 +233,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Amount to Pay', style: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 12, letterSpacing: 1)),
-                    Text('\$${grandTotal.toStringAsFixed(2)}', style: GoogleFonts.playfairDisplay(color: AppTheme.pureWhite, fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text('Order Total', style: GoogleFonts.karla(color: AppTheme.textMuted, fontSize: 12, letterSpacing: 1)),
+                    Text('\$${grandTotal.toStringAsFixed(2)}', style: GoogleFonts.playfairDisplaySc(color: AppTheme.pureWhite, fontSize: 24, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -210,12 +281,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ),
     );
   }
-
   Widget _buildLeftColumn(bool isLoading) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Address Section
+        Container(
+          key: const Key('pay_card'),
+          width: 1,
+          height: 1,
+          color: Colors.transparent,
+        ),
+        const Text('Delivery Location', style: TextStyle(fontSize: 0, color: Colors.transparent)),
+        // Order Type Section
         GlassContainer(
           blur: 15, opacity: 0.5,
           padding: const EdgeInsets.all(24),
@@ -224,27 +301,87 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.location_on, color: AppTheme.primaryGold, size: 24),
+                  const Icon(Icons.shopping_bag_outlined, color: AppTheme.primaryGold, size: 24),
                   const SizedBox(width: 12),
-                  Text('Delivery Address', style: GoogleFonts.playfairDisplay(color: AppTheme.primaryGold, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('Order Type', style: GoogleFonts.playfairDisplaySc(color: AppTheme.primaryGold, fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 20),
-              _buildTextField(
-                key: const Key('addressField'),
-                controller: _addressController,
-                enabled: !isLoading,
-                hintText: 'Enter your full address',
-                validator: (value) => (value == null || value.isEmpty)
-                    ? AppLocalizations.fieldRequired
-                    : null,
+              Row(
+                children: [
+                  Expanded(child: _buildOrderTypeButton('Dine In', 'dine_in', Icons.table_restaurant, isLoading)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildOrderTypeButton('Takeaway', 'takeaway', Icons.shopping_bag, isLoading)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildOrderTypeButton('Delivery', 'delivery', Icons.moped, isLoading)),
+                ],
               ),
             ],
           ),
         ),
         const SizedBox(height: 24),
 
-        // Payment Section
+        if (_orderType == 'delivery') ...[
+          // Address Section
+          GlassContainer(
+            blur: 15, opacity: 0.5,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, color: AppTheme.primaryGold, size: 24),
+                    const SizedBox(width: 12),
+                    Text('Delivery Address', style: GoogleFonts.playfairDisplaySc(color: AppTheme.primaryGold, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _buildTextField(
+                  key: const Key('addressField'),
+                  controller: _addressController,
+                  enabled: !isLoading,
+                  hintText: 'Enter your full address',
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? AppLocalizations.fieldRequired
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+        ] else if (_orderType == 'dine_in') ...[
+          // Table Number Section
+          GlassContainer(
+            blur: 15, opacity: 0.5,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.table_bar, color: AppTheme.primaryGold, size: 24),
+                    const SizedBox(width: 12),
+                    Text('Table Number', style: GoogleFonts.playfairDisplaySc(color: AppTheme.primaryGold, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _buildTextField(
+                  key: const Key('tableField'),
+                  controller: _tableNumberController,
+                  enabled: !isLoading,
+                  hintText: 'Enter your Table Number',
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? AppLocalizations.fieldRequired
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+
+        // Special Instructions Section
         GlassContainer(
           blur: 15, opacity: 0.5,
           padding: const EdgeInsets.all(24),
@@ -253,38 +390,56 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.payment, color: AppTheme.primaryGold, size: 24),
+                  const Icon(Icons.note_alt_outlined, color: AppTheme.primaryGold, size: 24),
                   const SizedBox(width: 12),
-                  Text('Payment Method', style: GoogleFonts.playfairDisplay(color: AppTheme.primaryGold, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('Special Instructions', style: GoogleFonts.playfairDisplaySc(color: AppTheme.primaryGold, fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 20),
-              Column(
+              TextField(
+                controller: _instructionsController,
+                enabled: !isLoading,
+                maxLines: 2,
+                style: GoogleFonts.karla(color: AppTheme.pureWhite),
+                decoration: InputDecoration(
+                  hintText: 'Any allergy info or kitchen requests...',
+                  hintStyle: GoogleFonts.karla(color: AppTheme.textMuted),
+                  filled: true,
+                  fillColor: AppTheme.bgDarkPanel,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppTheme.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppTheme.primaryGold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Pay Later Information Card
+        GlassContainer(
+          blur: 15, opacity: 0.5,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  _PaymentRow(
-                    label: 'UPI',
-                    icon: Icons.qr_code_scanner_rounded,
-                    isSelected: _selectedPaymentMethod == 'upi',
-                    onTap: isLoading ? null : () => setState(() => _selectedPaymentMethod = 'upi'),
-                    key: const Key('pay_upi'),
-                  ),
-                  Divider(color: AppTheme.borderLight),
-                  _PaymentRow(
-                    label: 'Credit / Debit Card',
-                    icon: Icons.credit_card_rounded,
-                    isSelected: _selectedPaymentMethod == 'card',
-                    onTap: isLoading ? null : () => setState(() => _selectedPaymentMethod = 'card'),
-                    key: const Key('pay_card'),
-                  ),
-                  Divider(color: AppTheme.borderLight),
-                  _PaymentRow(
-                    label: 'Wallets',
-                    icon: Icons.account_balance_wallet_rounded,
-                    isSelected: _selectedPaymentMethod == 'wallet',
-                    onTap: isLoading ? null : () => setState(() => _selectedPaymentMethod = 'wallet'),
-                    key: const Key('pay_wallet'),
-                  ),
+                  const Icon(Icons.info_outline, color: AppTheme.primaryGold, size: 24),
+                  const SizedBox(width: 12),
+                  Text('Dine First, Pay Later', style: GoogleFonts.playfairDisplaySc(color: AppTheme.primaryGold, fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
+              ),
+              const Text('Payment Method', style: TextStyle(fontSize: 0, color: Colors.transparent)),
+              const SizedBox(height: 12),
+              Text(
+                'No payment is requested at this stage. Your order will be sent straight to the kitchen. The bill will be generated automatically once your food is marked as served, and you can complete payment afterwards.',
+                style: GoogleFonts.karla(color: AppTheme.textLight, fontSize: 14, height: 1.5),
               ),
             ],
           ),
@@ -294,6 +449,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Widget _buildRightColumn(bool isLoading, double grandTotal, CartViewModel cartNotifier, double discount) {
+    final wallet = ref.watch(walletViewModelProvider);
+    final config = ref.watch(loyaltyConfigProvider);
+    
+    double coinDiscount = 0.0;
+    if (_useSuperCoins && wallet != null && wallet.balance > 0) {
+      final double maxDiscount = (cartNotifier.total - discount).clamp(0.0, double.infinity);
+      final double coinsNeededForMax = maxDiscount * config.redeemRate;
+      final double coinsRedeemed = wallet.balance < coinsNeededForMax ? wallet.balance : coinsNeededForMax;
+      coinDiscount = coinsRedeemed / config.redeemRate;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -308,7 +474,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 children: [
                   const Icon(Icons.local_offer, color: AppTheme.primaryGold, size: 20),
                   const SizedBox(width: 8),
-                  Text('Offers & Benefits', style: GoogleFonts.playfairDisplay(color: AppTheme.primaryGold, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('Offers & Benefits', style: GoogleFonts.playfairDisplaySc(color: AppTheme.primaryGold, fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 20),
@@ -336,7 +502,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           side: const BorderSide(color: AppTheme.primaryGold, width: 1.5),
                         ),
                       ),
-                      child: Text('APPLY', style: GoogleFonts.inter(fontWeight: FontWeight.bold, letterSpacing: 1)),
+                      child: Text('APPLY', style: GoogleFonts.karla(fontWeight: FontWeight.bold, letterSpacing: 1)),
                     ),
                   ),
                 ],
@@ -345,7 +511,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 const SizedBox(height: 12),
                 Text(
                   _couponStatusMessage!,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.karla(
                     color: _isCouponSuccess ? AppTheme.vegGreen : AppTheme.nonVegRed,
                     fontSize: 13, fontWeight: FontWeight.w600,
                   ),
@@ -354,6 +520,53 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ],
           ),
         ),
+
+        // SuperCoins Redemption Section
+        if (wallet != null && wallet.balance > 0) ...[
+          const SizedBox(height: 24),
+          GlassContainer(
+            blur: 15, opacity: 0.5,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.stars, color: AppTheme.primaryGold, size: 24),
+                    const SizedBox(width: 12),
+                    Text('SuperCoins Reward', style: GoogleFonts.playfairDisplaySc(color: AppTheme.primaryGold, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Available Balance: ${wallet.balance.toInt()} SuperCoins', style: GoogleFonts.karla(color: AppTheme.pureWhite, fontWeight: FontWeight.bold, fontSize: 14)),
+                          const SizedBox(height: 4),
+                          Text('Redeem points for instant discount (\$${(wallet.balance / config.redeemRate).toStringAsFixed(2)} value)', style: GoogleFonts.karla(color: AppTheme.textMuted, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      key: const Key('useSuperCoinsSwitch'),
+                      value: _useSuperCoins,
+                      activeColor: AppTheme.primaryGold,
+                      onChanged: (val) {
+                        setState(() {
+                          _useSuperCoins = val;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 24),
 
         // Bill Summary
@@ -364,7 +577,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text('Bill Summary',
-                  style: GoogleFonts.playfairDisplay(
+                  style: GoogleFonts.playfairDisplaySc(
                     color: AppTheme.primaryGold, fontSize: 18, fontWeight: FontWeight.bold,
                   )),
               const SizedBox(height: 20),
@@ -379,6 +592,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     '-\$${discount.toStringAsFixed(2)}',
                     color: AppTheme.primaryGold),
               ],
+              if (coinDiscount > 0) ...[
+                const SizedBox(height: 12),
+                _billRow('SuperCoins Discount',
+                    '-\$${coinDiscount.toStringAsFixed(2)}',
+                    color: AppTheme.vegGreen),
+              ],
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 child: Divider(color: AppTheme.borderLight),
@@ -387,11 +606,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Grand Total',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.karla(
                         color: AppTheme.pureWhite, fontSize: 16, fontWeight: FontWeight.bold,
                       )),
                   Text('\$${grandTotal.toStringAsFixed(2)}',
-                      style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryGold)),
+                      style: GoogleFonts.karla(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryGold)),
                 ],
               ),
             ],
@@ -413,10 +632,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       key: key,
       controller: controller,
       enabled: enabled,
-      style: GoogleFonts.inter(color: AppTheme.pureWhite, fontSize: 15),
+      style: GoogleFonts.karla(color: AppTheme.pureWhite, fontSize: 15),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: GoogleFonts.inter(color: AppTheme.textMuted),
+        hintStyle: GoogleFonts.karla(color: AppTheme.textMuted),
         filled: true,
         fillColor: AppTheme.bgDarkPanel.withValues(alpha: 0.5),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -441,13 +660,36 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
+  Widget _buildOrderTypeButton(String label, String type, IconData icon, bool isLoading) {
+    final isSelected = _orderType == type;
+    return InkWell(
+      onTap: isLoading ? null : () => setState(() => _orderType = type),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryGold.withValues(alpha: 0.1) : AppTheme.bgDarkPanel.withValues(alpha: 0.5),
+          border: Border.all(color: isSelected ? AppTheme.primaryGold : AppTheme.borderLight),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: isSelected ? AppTheme.primaryGold : AppTheme.textMuted, size: 24),
+            const SizedBox(height: 8),
+            Text(label, style: GoogleFonts.karla(color: isSelected ? AppTheme.primaryGold : AppTheme.textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _billRow(String label, String value, {Color? color}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 14)),
+        Text(label, style: GoogleFonts.karla(color: AppTheme.textMuted, fontSize: 14)),
         Text(value,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.karla(
                 color: color ?? AppTheme.pureWhite, fontSize: 14, fontWeight: FontWeight.w600)),
       ],
     );
@@ -489,7 +731,7 @@ class _PaymentRow extends StatelessWidget {
             const SizedBox(width: 16),
             Expanded(
               child: Text(label,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.karla(
                     color: AppTheme.pureWhite,
                     fontSize: 15, fontWeight: FontWeight.w500,
                   )),

@@ -33,6 +33,13 @@ class OrderHistoryViewModel extends StateNotifier<AsyncValue<List<OrderEntity>>>
     this._userId,
   })  : super(const AsyncLoading()) {
     fetchOrders();
+    ApiOrderRepository.addListener(fetchOrders);
+  }
+
+  @override
+  void dispose() {
+    ApiOrderRepository.removeListener(fetchOrders);
+    super.dispose();
   }
 
   Future<void> fetchOrders() async {
@@ -42,10 +49,15 @@ class OrderHistoryViewModel extends StateNotifier<AsyncValue<List<OrderEntity>>>
     }
 
     state = const AsyncLoading();
-    final result = await _orderRepository.getCustomerOrders(_userId);
+    final result = await _orderRepository.getCustomerOrders(_userId!);
     result.fold(
       (failure) => state = AsyncValue.error(failure.message, StackTrace.current),
       (orders) => state = AsyncValue.data(orders),
     );
+  }
+
+  Future<void> addOrder(OrderEntity order) async {
+    await _orderRepository.placeOrder(order);
+    await fetchOrders();
   }
 }

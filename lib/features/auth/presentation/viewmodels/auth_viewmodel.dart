@@ -75,6 +75,10 @@ class AuthViewModel extends StateNotifier<AuthState> {
     state = const AuthLoading();
     try {
       final result = await _getCurrentUserUseCase();
+      
+      // Prevent race condition: if user just signed in successfully, don't overwrite
+      if (state is Authenticated) return;
+
       result.fold(
         (failure) {
           state = const Unauthenticated();
@@ -88,6 +92,7 @@ class AuthViewModel extends StateNotifier<AuthState> {
         },
       );
     } catch (e) {
+      if (state is Authenticated) return;
       state = const Unauthenticated();
     }
   }
@@ -142,6 +147,27 @@ class AuthViewModel extends StateNotifier<AuthState> {
 
   void authenticateUser(UserEntity user) {
     state = Authenticated(user);
+  }
+
+  /// Update the authenticated user's profile fields in memory.
+  void updateProfile({
+    String? name,
+    String? email,
+    String? phoneNumber,
+  }) {
+    if (state is! Authenticated) return;
+    final current = (state as Authenticated).user;
+    final updated = UserEntity(
+      uid:         current.uid,
+      name:        name  ?? current.name,
+      email:       email ?? current.email,
+      phoneNumber: phoneNumber ?? current.phoneNumber,
+      role:        current.role,
+      isActive:    current.isActive,
+      createdAt:   current.createdAt,
+      updatedAt:   DateTime.now(),
+    );
+    state = Authenticated(updated);
   }
 
   // Wrapper to isolate google sign-in call

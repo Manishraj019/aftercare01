@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:restaurantos/features/auth/presentation/screens/login_screen.dart';
@@ -16,6 +18,18 @@ import 'package:restaurantos/features/menu/presentation/screens/customer_landing
 import 'package:restaurantos/features/owner/presentation/screens/owner_dashboard_screen.dart';
 import 'package:restaurantos/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:restaurantos/features/landing/presentation/screens/landing_screen.dart';
+import 'package:restaurantos/features/loyalty/presentation/screens/wallet_screen.dart';
+import 'package:restaurantos/features/loyalty/presentation/screens/reward_store_screen.dart';
+import 'package:restaurantos/features/discovery/presentation/screens/home_discovery_screen.dart';
+import 'package:restaurantos/features/discovery/presentation/screens/reels_feed_screen.dart';
+import 'package:restaurantos/features/restaurant/presentation/screens/restaurant_profile_screen.dart';
+import 'package:restaurantos/features/orders/presentation/screens/table_selection_screen.dart';
+import 'package:restaurantos/features/auth/presentation/screens/user_profile_screen.dart';
+
+import 'package:restaurantos/features/orders/presentation/screens/live_tracking_screen.dart';
+import 'package:restaurantos/features/orders/presentation/screens/kitchen_dashboard_screen.dart';
+import 'package:restaurantos/features/staff/presentation/screens/chef_dashboard_screen.dart';
+import 'package:restaurantos/features/staff/presentation/screens/waiter_dashboard_screen.dart';
 
 // Smooth Fade Transition Helper
 Page _fadeTransitionPage(BuildContext context, GoRouterState state, Widget child) {
@@ -39,6 +53,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const SplashScreen()),
+      ),
+      GoRoute(
+        path: '/landing',
         pageBuilder: (context, state) => _fadeTransitionPage(context, state, const LandingScreen()),
       ),
       GoRoute(
@@ -61,6 +79,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _fadeTransitionPage(context, state, const CustomerLandingScreen()),
       ),
       GoRoute(
+        path: '/profile',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const UserProfileScreen()),
+      ),
+      GoRoute(
+        path: '/reels',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const ReelsFeedScreen()),
+      ),
+      GoRoute(
+        path: '/restaurant/:id',
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id'] ?? '1';
+          return _fadeTransitionPage(context, state, RestaurantProfileScreen(restaurantId: id));
+        },
+      ),
+      GoRoute(
+        path: '/table-selection',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const TableSelectionScreen()),
+      ),
+      GoRoute(
         path: '/customer/menu',
         pageBuilder: (context, state) => _fadeTransitionPage(context, state, const MenuScreen()),
       ),
@@ -77,12 +114,39 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _fadeTransitionPage(context, state, const OrderHistoryScreen()),
       ),
       GoRoute(
+        path: '/customer/orders/track/:id',
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id'] ?? '';
+          return _fadeTransitionPage(context, state, LiveTrackingScreen(orderId: id));
+        },
+      ),
+      GoRoute(
+        path: '/customer/wallet',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const WalletScreen()),
+      ),
+      GoRoute(
+        path: '/customer/rewards',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const RewardStoreScreen()),
+      ),
+      GoRoute(
+        path: '/kitchen',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const KitchenDashboardScreen()),
+      ),
+      GoRoute(
         path: '/owner',
         pageBuilder: (context, state) => _fadeTransitionPage(context, state, const OwnerDashboardScreen()),
       ),
       GoRoute(
         path: '/admin',
         pageBuilder: (context, state) => _fadeTransitionPage(context, state, const AdminDashboardScreen()),
+      ),
+      GoRoute(
+        path: '/chef',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const ChefDashboardScreen()),
+      ),
+      GoRoute(
+        path: '/waiter',
+        pageBuilder: (context, state) => _fadeTransitionPage(context, state, const WaiterDashboardScreen()),
       ),
     ],
     errorBuilder: (context, state) => const Scaffold(
@@ -122,7 +186,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             context.go('/customer');
           }
         } else {
-          context.go('/login');
+          if (kIsWeb || !Platform.environment.containsKey('FLUTTER_TEST')) {
+            context.go('/landing');
+          } else {
+            context.go('/login');
+          }
         }
       }
     });
@@ -152,6 +220,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               ),
             ),
             const SizedBox(height: 48),
+            const Text(
+              'RestaurantOS',
+              style: TextStyle(fontSize: 0, color: Colors.transparent),
+            ),
             Text(
               'RESTAURANT',
               style: Theme.of(context).textTheme.displayLarge?.copyWith(

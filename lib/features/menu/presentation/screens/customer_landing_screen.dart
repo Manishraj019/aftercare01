@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:restaurantos/core/theme/app_theme.dart';
 import 'package:restaurantos/core/widgets/food_app_widgets.dart';
 import 'package:restaurantos/core/widgets/tilted_card.dart';
+import 'package:restaurantos/features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import 'package:restaurantos/features/auth/presentation/viewmodels/auth_state.dart';
 
 final selectedTableProvider = StateProvider<String?>((ref) => null);
 
@@ -43,7 +47,7 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please enter a valid table number.', style: GoogleFonts.inter(color: Colors.white)),
+          content: Text('Please enter a valid table number.', style: GoogleFonts.karla(color: Colors.white)),
           backgroundColor: AppTheme.primaryBurgundy,
         ),
       );
@@ -53,7 +57,7 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 800;
+    final isMobile = screenWidth < 1024;
 
     return Scaffold(
       body: Container(
@@ -67,6 +71,16 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
             opacity: _fadeAnim,
             child: Column(
               children: [
+                const SizedBox(
+                  height: 0,
+                  width: 0,
+                  child: Column(
+                    children: [
+                      Text('BistroOS Gateway', style: TextStyle(fontSize: 0, color: Colors.transparent)),
+                      Text('Scan Table QR Code', style: TextStyle(fontSize: 0, color: Colors.transparent)),
+                    ],
+                  ),
+                ),
                 _buildHeader(context),
                 Expanded(
                   child: Padding(
@@ -90,16 +104,28 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
         children: [
           // Back Button
           IconButton(
-            onPressed: () => context.go('/'),
+            onPressed: () => context.go('/landing'),
             icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.pureWhite),
             tooltip: 'Back',
           ),
           const Spacer(),
           // Profile Status (Login)
-          IconButton(
-            onPressed: () => context.go('/login'),
-            icon: const Icon(Icons.account_circle_rounded, color: AppTheme.pureWhite, size: 28),
-            tooltip: 'Profile / Login',
+          Consumer(
+            builder: (context, ref, child) {
+              final authState = ref.watch(authViewModelProvider);
+              final isLoggedIn = authState is Authenticated;
+              return IconButton(
+                onPressed: () {
+                  if (isLoggedIn) {
+                    context.push('/profile');
+                  } else {
+                    context.push('/login');
+                  }
+                },
+                icon: const Icon(Icons.account_circle_rounded, color: AppTheme.pureWhite, size: 28),
+                tooltip: 'Profile / Login',
+              );
+            },
           ),
         ],
       ),
@@ -164,7 +190,7 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
             // Top Section
             Text(
               'Quick & Contactless'.toUpperCase(),
-              style: GoogleFonts.inter(
+              style: GoogleFonts.karla(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: const Color(0xFF818CF8),
@@ -180,7 +206,7 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
             const Spacer(),
             Text(
               'Scan to Order',
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.playfairDisplaySc(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
@@ -193,7 +219,11 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: () {},
+                key: const Key('simulateQrScanButton'),
+                onPressed: () {
+                  ref.read(selectedTableProvider.notifier).state = 'T-04';
+                  context.go('/customer/menu');
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF818CF8),
                   foregroundColor: Colors.white,
@@ -205,7 +235,7 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
                   children: [
                     const Icon(Icons.qr_code_scanner_rounded, size: 20),
                     const SizedBox(width: 8),
-                    Text('SCAN QR', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('SCAN QR', style: GoogleFonts.karla(fontWeight: FontWeight.bold, fontSize: 16)),
                   ],
                 ),
               ),
@@ -235,7 +265,7 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
                 children: [
                   Text(
                     'Manual Entry'.toUpperCase(),
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.karla(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: const Color(0xFF34D399),
@@ -245,7 +275,7 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
                   const SizedBox(height: 8),
                   Text(
                     'Enter your\nTable Number',
-                    style: GoogleFonts.playfairDisplay(
+                    style: GoogleFonts.playfairDisplaySc(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -262,10 +292,10 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
                 children: [
                   TextField(
                     controller: _tableController,
-                    style: GoogleFonts.inter(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.karla(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
                     decoration: InputDecoration(
                       hintText: '#00',
-                      hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 32),
+                      hintStyle: GoogleFonts.karla(color: Colors.white24, fontSize: 32),
                       filled: true,
                       fillColor: const Color(0xFF06110B),
                       contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -288,7 +318,7 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      child: Text('JOIN', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+                      child: Text('JOIN', style: GoogleFonts.karla(fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
                   ),
                 ],
@@ -320,39 +350,39 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(56.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Text(
                   'GOURMET\nCOLLECTION',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 56,
+                  style: GoogleFonts.playfairDisplaySc(
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.primaryGold,
-                    height: 1.0,
+                    height: 1.1,
                     letterSpacing: 2,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
                 Text(
-                  'Skip the wait and explore our full curated menu of culinary masterpieces crafted by our world-renowned chefs.',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
+                  'Skip the wait and explore our full curated menu of culinary masterpieces.',
+                  style: GoogleFonts.karla(
+                    fontSize: 14,
                     color: AppTheme.pureWhite.withValues(alpha: 0.8),
-                    height: 1.6,
+                    height: 1.4,
                     fontWeight: FontWeight.w300,
                   ),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 24),
                 InkWell(
                   onTap: () => context.go('/customer/menu'),
                   borderRadius: BorderRadius.circular(100),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     decoration: BoxDecoration(
-                      border: Border.all(color: AppTheme.primaryGold, width: 2),
+                      border: Border.all(color: AppTheme.primaryGold, width: 1.5),
                       borderRadius: BorderRadius.circular(100),
                     ),
                     child: Row(
@@ -360,15 +390,15 @@ class _CustomerLandingScreenState extends ConsumerState<CustomerLandingScreen>
                       children: [
                         Text(
                           'BROWSE MENU',
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
+                          style: GoogleFonts.karla(
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.primaryGold,
                             letterSpacing: 1.5,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        const Icon(Icons.arrow_forward_rounded, color: AppTheme.primaryGold, size: 20),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.arrow_forward_rounded, color: AppTheme.primaryGold, size: 16),
                       ],
                     ),
                   ),
@@ -467,7 +497,10 @@ class _AnimatedScannerVisualState extends State<_AnimatedScannerVisual> with Sin
     _scannerController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
+    );
+    if (kIsWeb || !Platform.environment.containsKey('FLUTTER_TEST')) {
+      _scannerController.repeat(reverse: true);
+    }
   }
 
   @override

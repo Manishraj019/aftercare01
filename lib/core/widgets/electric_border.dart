@@ -1,5 +1,7 @@
 import 'dart:math';
 import 'dart:ui' as ui;
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 /// A Flutter port of the ElectricBorder React component.
@@ -15,11 +17,11 @@ class ElectricBorder extends StatefulWidget {
   const ElectricBorder({
     super.key,
     required this.child,
-    this.color = const Color(0xFF5227FF),
+    this.color = const Color(0xFF00E5FF),
     this.speed = 1.0,
-    this.chaos = 0.12,
-    this.borderRadius = 24.0,
-    this.thickness = 1.5,
+    this.chaos = 1.0,
+    this.borderRadius = 8.0,
+    this.thickness = 2.0,
   });
 
   @override
@@ -36,7 +38,10 @@ class _ElectricBorderState extends State<ElectricBorder>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
-    )..repeat();
+    );
+    if (kIsWeb || !Platform.environment.containsKey('FLUTTER_TEST')) {
+      _controller.repeat();
+    }
   }
 
   @override

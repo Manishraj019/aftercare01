@@ -13,9 +13,11 @@ import 'package:restaurantos/features/menu/domain/repositories/menu_repository.d
 import 'package:restaurantos/features/menu/presentation/viewmodels/cart_viewmodel.dart';
 import 'package:restaurantos/features/menu/presentation/viewmodels/menu_viewmodel.dart';
 import 'package:restaurantos/features/orders/domain/entities/order_entity.dart';
+import 'package:restaurantos/features/orders/domain/entities/order_history_entry.dart';
 import 'package:restaurantos/features/orders/domain/repositories/order_repository.dart';
 import 'package:restaurantos/features/orders/presentation/viewmodels/order_history_viewmodel.dart';
 import 'package:restaurantos/main.dart';
+import 'package:restaurantos/features/orders/domain/entities/dining_session.dart';
 
 class FakeAuthRemoteDataSourceForOrders implements AuthRemoteDataSource {
   @override
@@ -118,7 +120,95 @@ class FakeOrderRepository implements OrderRepository {
   Future<Either<Failure, void>> updateOrderStatus(String orderId, String status) async {
     return const Right(null);
   }
+
+  @override
+  Future<Either<Failure, DiningSession>> getOrCreateActiveSession(
+      String tableNumber, String restaurantId, String customerId, String customerName) async {
+    return Right(DiningSession(
+      sessionId: 'SID-FAKETEST',
+      orderNumber: '#A1000',
+      tableNumber: tableNumber,
+      restaurantId: restaurantId,
+      customerId: customerId,
+      customerName: customerName,
+      status: 'ordering',
+      startTime: DateTime.now(),
+      updatedAt: DateTime.now(),
+    ));
+  }
+
+  @override
+  Future<Either<Failure, DiningSession?>> getActiveSessionForCustomer(String customerId) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, DiningSession?>> getActiveSessionForTable(
+      String tableNumber, String restaurantId) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, List<DiningSession>>> getSessionsForOwner(String restaurantId) async {
+    return const Right([]);
+  }
+
+  @override
+  Future<Either<Failure, OrderEntity>> appendItemsToSession(
+    String sessionId, {
+    required List newItems,
+    required String modifiedBy,
+    String? specialInstructions,
+    double discount = 0.0,
+    double coinDiscount = 0.0,
+    double coinsRedeemed = 0.0,
+  }) async {
+    return Left(ServerFailure('Not implemented in fake'));
+  }
+
+  @override
+  Future<Either<Failure, OrderEntity?>> getMasterOrderForSession(String sessionId) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, void>> updateKOTItemStatus(
+      String orderId, String itemId, String status) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, void>> updateKOTDetails(
+      String orderId, {double? ownerDelay, String? priority}) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, void>> freezeOrderForBilling(String sessionId) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, void>> closeSession(String sessionId,
+      {required String paymentMethod,
+      double discount = 0.0,
+      double coinsRedeemed = 0.0,
+      double coinsEarned = 0.0}) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, List<OrderHistoryEntry>>> getOrderHistoryForSession(String sessionId) async {
+    return const Right([]);
+  }
+
+  @override
+  String getKitchenLoadStatus() => 'Free';
+
+  @override
+  void setKitchenLoadStatus(String status) {}
 }
+
 
 void main() {
   testWidgets('Place Order and View Order History Integration Test', (WidgetTester tester) async {
@@ -168,6 +258,12 @@ void main() {
     expect(find.text('Delivery Location'), findsOneWidget);
     expect(find.text('Payment Method'), findsOneWidget);
 
+    // Select Order Type: Delivery to bypass Dine In table number validation
+    final deliveryTypeBtn = find.text('Delivery');
+    expect(deliveryTypeBtn, findsOneWidget);
+    await tester.tap(deliveryTypeBtn);
+    await tester.pumpAndSettle();
+
     // 7. Select Payment Method: Card
     final payCardChip = find.byKey(const Key('pay_card'));
     expect(payCardChip, findsOneWidget);
@@ -184,7 +280,7 @@ void main() {
 
     // 9. Verify redirect to Order History (assert 'My Orders' title and order exists in active list)
     expect(find.text('My Orders'), findsOneWidget);
-    expect(find.text('Active Orders'), findsOneWidget);
+    expect(find.text('ACTIVE ORDERS'), findsOneWidget);
     expect(find.text('\$24.98'), findsOneWidget); // Subtotal: $18.50, Tax: $1.48, Delivery: $5.00 => Total: $24.98
     expect(find.text('1x Truffle Mushroom Fettuccine'), findsOneWidget);
   });

@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:restaurantos/core/theme/app_theme.dart';
@@ -108,7 +109,7 @@ class _FoodPrimaryButtonState extends State<FoodPrimaryButton> {
                   children: [
                     Text(
                       widget.label,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.karla(
                         fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: textColor,
                       ),
                     ),
@@ -184,7 +185,7 @@ class AddStepperButton extends StatelessWidget {
           ),
           child: Text(
             'ADD',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.karla(
               color: AppTheme.primaryGold,
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -219,7 +220,7 @@ class AddStepperButton extends StatelessWidget {
             child: Text(
               '$quantity',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.karla(
                 color: AppTheme.bgDarkCharcoal,
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
@@ -238,3 +239,65 @@ class AddStepperButton extends StatelessWidget {
     );
   }
 }
+
+// ─── Luxury Food Image Loader (Supports Network & Base64 Uploads) ───
+class FoodImage extends StatelessWidget {
+  final String imageUrl;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final Widget? errorWidget;
+
+  const FoodImage({
+    super.key,
+    required this.imageUrl,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    this.errorWidget,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.isEmpty) {
+      return errorWidget ?? Container(
+        color: AppTheme.bgDarkPanel,
+        child: const Icon(Icons.restaurant, size: 32, color: AppTheme.textMuted),
+      );
+    }
+
+    if (imageUrl.startsWith('data:image') && imageUrl.contains('base64,')) {
+      try {
+        final base64String = imageUrl.split('base64,').last;
+        final decodedBytes = base64Decode(base64String);
+        return Image.memory(
+          decodedBytes,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stack) => errorWidget ?? Container(
+            color: AppTheme.bgDarkPanel,
+            child: const Icon(Icons.restaurant, size: 32, color: AppTheme.textMuted),
+          ),
+        );
+      } catch (_) {
+        return errorWidget ?? Container(
+          color: AppTheme.bgDarkPanel,
+          child: const Icon(Icons.restaurant, size: 32, color: AppTheme.textMuted),
+        );
+      }
+    }
+
+    return Image.network(
+      imageUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (context, error, stack) => errorWidget ?? Container(
+        color: AppTheme.bgDarkPanel,
+        child: const Icon(Icons.restaurant, size: 32, color: AppTheme.textMuted),
+      ),
+    );
+  }
+}
+

@@ -46,14 +46,27 @@ class CartViewModel extends StateNotifier<List<CartItemEntity>> {
   }
 
   void addItem(MenuItemEntity item) {
-    final existingIndex = state.indexWhere((element) => element.itemId == item.id);
+    addItemWithCustomizations(item);
+  }
+
+  void addItemWithCustomizations(
+    MenuItemEntity item, {
+    String? notes,
+    String? spiceLevel,
+    List<String>? addOns,
+    double addedPrice = 0.0,
+    int quantity = 1,
+  }) {
+    // Unique key to distinguish different customization profiles in the cart
+    final String customItemId = '${item.id}_${spiceLevel ?? ""}_${addOns?.join(",") ?? ""}_${notes ?? ""}';
+    final existingIndex = state.indexWhere((element) => element.itemId == customItemId);
 
     if (existingIndex >= 0) {
       final existingItem = state[existingIndex];
       state = [
         for (int i = 0; i < state.length; i++)
           if (i == existingIndex)
-            existingItem.copyWith(quantity: existingItem.quantity + 1)
+            existingItem.copyWith(quantity: existingItem.quantity + quantity)
           else
             state[i]
       ];
@@ -61,11 +74,14 @@ class CartViewModel extends StateNotifier<List<CartItemEntity>> {
       state = [
         ...state,
         CartItemEntity(
-          itemId: item.id,
+          itemId: customItemId,
           name: item.name,
-          price: item.price,
-          quantity: 1,
+          price: item.price + addedPrice,
+          quantity: quantity,
           imageUrl: item.imageUrl,
+          notes: notes,
+          spiceLevel: spiceLevel,
+          addOns: addOns,
         )
       ];
     }
@@ -93,6 +109,11 @@ class CartViewModel extends StateNotifier<List<CartItemEntity>> {
 
   void clearCart() {
     state = [];
+    _sync();
+  }
+
+  void setCartItems(List<CartItemEntity> items) {
+    state = items;
     _sync();
   }
 

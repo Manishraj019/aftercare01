@@ -42,19 +42,22 @@ class _PillNavState extends State<PillNav> {
         color: widget.pillColor,
         borderRadius: BorderRadius.circular(9999),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: widget.items.map((item) {
-          final isSelected = widget.selectedValue == item.value;
-          return _Pill(
-            item: item,
-            isSelected: isSelected,
-            onTap: () => widget.onChanged(item.value),
-            baseColor: widget.baseColor,
-            hoveredTextColor: widget.hoveredPillTextColor,
-            textColor: widget.pillTextColor,
-          );
-        }).toList(),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: widget.items.map((item) {
+            final isSelected = widget.selectedValue == item.value;
+            return _Pill(
+              item: item,
+              isSelected: isSelected,
+              onTap: () => widget.onChanged(item.value),
+              baseColor: widget.baseColor,
+              hoveredTextColor: widget.hoveredPillTextColor,
+              textColor: widget.pillTextColor,
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -157,7 +160,7 @@ class _PillState extends State<_Pill> with SingleTickerProviderStateMixin {
                       offset: Offset(0, -progress * (36.0 + 8.0)),
                       child: Text(
                         widget.item.label.toUpperCase(),
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.karla(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                           letterSpacing: 0.2,
@@ -174,7 +177,7 @@ class _PillState extends State<_Pill> with SingleTickerProviderStateMixin {
                         opacity: progress > 0.05 ? 1.0 : 0.0, // Fade in instantly like GSAP set
                         child: Text(
                           widget.item.label.toUpperCase(),
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.karla(
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                             letterSpacing: 0.2,

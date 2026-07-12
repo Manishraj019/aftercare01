@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:restaurantos/core/theme/block_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:restaurantos/features/loyalty/presentation/viewmodels/loyalty_viewmodel.dart';
+import 'package:restaurantos/features/loyalty/data/repositories/loyalty_repository.dart';
 
 class Restaurant {
   final String id;
@@ -122,7 +124,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -148,6 +150,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
             Tab(icon: Icon(Icons.business), text: 'Restaurants'),
             Tab(icon: Icon(Icons.vpn_key), text: 'Licensing'),
             Tab(icon: Icon(Icons.people), text: 'Users'),
+            Tab(icon: Icon(Icons.stars), text: 'SuperCoins'),
           ],
         ),
       ),
@@ -157,6 +160,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
           const _RestaurantsTab(),
           const _LicensingTab(),
           const _UsersTab(),
+          const _SuperCoinsTab(),
         ],
       ),
     );
@@ -375,6 +379,232 @@ class _UsersTab extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// -------------------------------------------------------------
+// SuperCoins Config Dashboard Tab
+// -------------------------------------------------------------
+class _SuperCoinsTab extends ConsumerStatefulWidget {
+  const _SuperCoinsTab();
+
+  @override
+  ConsumerState<_SuperCoinsTab> createState() => _SuperCoinsTabState();
+}
+
+class _SuperCoinsTabState extends ConsumerState<_SuperCoinsTab> {
+  late TextEditingController _welcomeController;
+  late TextEditingController _earnController;
+  late TextEditingController _redeemController;
+  late TextEditingController _goldController;
+  late TextEditingController _platinumController;
+
+  @override
+  void initState() {
+    super.initState();
+    final config = ref.read(loyaltyConfigProvider);
+    _welcomeController = TextEditingController(text: config.welcomeBonus.toInt().toString());
+    _earnController = TextEditingController(text: config.earnRate.toInt().toString());
+    _redeemController = TextEditingController(text: config.redeemRate.toInt().toString());
+    _goldController = TextEditingController(text: config.goldThreshold.toInt().toString());
+    _platinumController = TextEditingController(text: config.platinumThreshold.toInt().toString());
+  }
+
+  @override
+  void dispose() {
+    _welcomeController.dispose();
+    _earnController.dispose();
+    _redeemController.dispose();
+    _goldController.dispose();
+    _platinumController.dispose();
+    super.dispose();
+  }
+
+  void _saveConfig() {
+    final welcome = double.tryParse(_welcomeController.text.trim());
+    final earn = double.tryParse(_earnController.text.trim());
+    final redeem = double.tryParse(_redeemController.text.trim());
+    final gold = double.tryParse(_goldController.text.trim());
+    final plat = double.tryParse(_platinumController.text.trim());
+
+    if (welcome == null || earn == null || redeem == null || gold == null || plat == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter valid numeric configuration values.')),
+      );
+      return;
+    }
+
+    final newConfig = LoyaltyConfig(
+      welcomeBonus: welcome,
+      earnRate: earn,
+      redeemRate: redeem,
+      goldThreshold: gold,
+      platinumThreshold: plat,
+    );
+
+    ref.read(loyaltyConfigProvider.notifier).updateConfig(newConfig);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Global SuperCoins configuration updated successfully!')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Loyalty Ecosystem Global Settings',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text('Configure global earning rates, redemption ratios, and membership tier requirements.'),
+          const SizedBox(height: 24),
+
+          // Platform metrics
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricCard('Total Coins Issued', '64.8K', Icons.insights, Colors.blue),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildMetricCard('Platform Redemption Rate', '31.2%', Icons.swap_horiz, Colors.indigo),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildMetricCard('Customer Engagement Index', '92%', Icons.speed, Colors.purple),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+
+          // Form fields
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('SuperCoins Configuration Rules', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _welcomeController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Welcome Bonus Coins',
+                            helperText: 'Awarded on new account sign-up',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: TextField(
+                          controller: _earnController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Earning Multiplier (\$ per Coin)',
+                            helperText: 'e.g. 10 means 1 coin per \$10 spent',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _redeemController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Redemption Rate (Coins per \$)',
+                            helperText: 'e.g. 10 means 10 coins = \$1 discount',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: Container(), // Spacer
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  const Text('Membership Tier Thresholds', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _goldController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Gold Tier Requirement (Lifetime Coins)',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: TextField(
+                          controller: _platinumController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Platinum Tier Requirement (Lifetime Coins)',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    onPressed: _saveConfig,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('SAVE CONFIGURATION', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withOpacity(0.1),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                const SizedBox(height: 4),
+                Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

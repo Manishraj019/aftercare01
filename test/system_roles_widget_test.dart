@@ -13,9 +13,11 @@ import 'package:restaurantos/features/menu/domain/repositories/menu_repository.d
 import 'package:restaurantos/features/menu/presentation/viewmodels/menu_viewmodel.dart';
 import 'package:restaurantos/features/menu/presentation/viewmodels/cart_viewmodel.dart';
 import 'package:restaurantos/features/orders/domain/entities/order_entity.dart';
+import 'package:restaurantos/features/orders/domain/entities/order_history_entry.dart';
 import 'package:restaurantos/features/orders/domain/repositories/order_repository.dart';
 import 'package:restaurantos/features/orders/presentation/viewmodels/order_history_viewmodel.dart';
 import 'package:restaurantos/main.dart';
+import 'package:restaurantos/features/orders/domain/entities/dining_session.dart';
 
 class FakeAuthRemoteDataSourceForRole implements AuthRemoteDataSource {
   final String role;
@@ -117,7 +119,95 @@ class FakeOrderRepository implements OrderRepository {
   Future<Either<Failure, void>> updateOrderStatus(String orderId, String status) async {
     return const Right(null);
   }
+
+  @override
+  Future<Either<Failure, DiningSession>> getOrCreateActiveSession(
+      String tableNumber, String restaurantId, String customerId, String customerName) async {
+    return Right(DiningSession(
+      sessionId: 'SID-FAKETEST',
+      orderNumber: '#A1000',
+      tableNumber: tableNumber,
+      restaurantId: restaurantId,
+      customerId: customerId,
+      customerName: customerName,
+      status: 'ordering',
+      startTime: DateTime.now(),
+      updatedAt: DateTime.now(),
+    ));
+  }
+
+  @override
+  Future<Either<Failure, DiningSession?>> getActiveSessionForCustomer(String customerId) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, DiningSession?>> getActiveSessionForTable(
+      String tableNumber, String restaurantId) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, List<DiningSession>>> getSessionsForOwner(String restaurantId) async {
+    return const Right([]);
+  }
+
+  @override
+  Future<Either<Failure, OrderEntity>> appendItemsToSession(
+    String sessionId, {
+    required List newItems,
+    required String modifiedBy,
+    String? specialInstructions,
+    double discount = 0.0,
+    double coinDiscount = 0.0,
+    double coinsRedeemed = 0.0,
+  }) async {
+    return Left(ServerFailure('Not implemented in fake'));
+  }
+
+  @override
+  Future<Either<Failure, OrderEntity?>> getMasterOrderForSession(String sessionId) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, void>> updateKOTItemStatus(
+      String orderId, String itemId, String status) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, void>> updateKOTDetails(
+      String orderId, {double? ownerDelay, String? priority}) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, void>> freezeOrderForBilling(String sessionId) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, void>> closeSession(String sessionId,
+      {required String paymentMethod,
+      double discount = 0.0,
+      double coinsRedeemed = 0.0,
+      double coinsEarned = 0.0}) async {
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, List<OrderHistoryEntry>>> getOrderHistoryForSession(String sessionId) async {
+    return const Right([]);
+  }
+
+  @override
+  String getKitchenLoadStatus() => 'Free';
+
+  @override
+  void setKitchenLoadStatus(String status) {}
 }
+
 
 void main() {
   testWidgets('Super Admin Dashboard Verification', (WidgetTester tester) async {

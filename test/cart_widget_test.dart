@@ -173,7 +173,7 @@ void main() {
     expect(find.text('\$37.00'), findsNWidgets(2)); // Subtotal & Item total
     expect(find.text('\$2.96'), findsOneWidget); // Tax
     expect(find.text('\$5.00'), findsOneWidget); // Delivery Fee
-    expect(find.text('\$44.96'), findsOneWidget); // Grand Total
+    expect(find.text('\$44.96'), findsNWidgets(2)); // Grand Total (Bill card & Bottom sheet)
 
     // 11. Perform checkout redirect
     final checkoutBtn = find.byKey(const Key('checkoutButton'));
